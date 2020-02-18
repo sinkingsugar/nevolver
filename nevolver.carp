@@ -1,0 +1,51 @@
+(Project.config "compiler" "gcc")
+
+(use-all IO)
+
+(deftype Connections [x Int])
+(deftype Activation [x Int])
+
+(deftype Node
+    (Input
+     [Float ;; activation
+      ])
+    (Hidden
+      [Float ;; activation
+       Connections ;; connections
+       Float ;; bias
+       Activation ;; squash
+       Float ;; state
+       Float ;; previous
+       Float ;; mask
+       Float ;; derivative
+       Float ;; prev delta bias
+       Float ;; total delta bias
+       Bool ;; output
+      ]))
+
+(definterface forward (Fn [(Ref Node)] Float))
+
+;; (defn forward [node]
+;;   (match node
+;;          (Node.Input activation) 1.0f
+;;          (Node.Hidden
+;;           activation
+;;           connections
+;;           bias
+;;           squash
+;;           state
+;;           previous
+;;           mask
+;;           derivative
+;;           prev_delta_bias
+;;           total_delta_bias
+;;           output) 2.0f))
+
+(defn forward [node] 10.0f)
+
+(defn main []
+  (let [node (Node.Input 3.0f)]
+    (do
+      (forward &node)
+      (println "Hello"))))
+    
