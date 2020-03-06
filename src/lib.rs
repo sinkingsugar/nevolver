@@ -1,6 +1,9 @@
-use std::collections::LinkedList;
+use std::rc::{Rc, Weak};
+use std::cell::Cell;
 
 type NeuroFloat = f32;
+type NodeRef = Rc<Cell<Node>>;
+type ConnRef = Rc<Cell<Connection>>;
 
 trait Forward {
     fn forward(&mut self) -> NeuroFloat;
@@ -10,9 +13,9 @@ trait Backward {
     fn backward(&mut self, rate: f32, momentum: f32, update: bool, target: NeuroFloat);
 }
 
-trait Group<'a> {
-    fn connect(&'a mut self, from: &'a mut Node<'a>, to: &'a mut Node<'a>);
-    fn project(&'a mut self, from: &'a mut Node<'a>, to: Vec<&'a mut Node<'a>>);
+trait Group {
+    fn connect(&mut self, from: &mut NodeRef, to: NodeRef);
+    fn project(&mut self, from: NodeRef, to: Vec<NodeRef>);
 }
 
 pub enum MutationKind {
@@ -90,33 +93,34 @@ impl Activation {
     }
 }
 
-#[derive(Default, Copy, Clone)]
-pub struct Connection<'a> {
-    from: Option<&'a Node<'a>>,
-    to: Option<&'a Node<'a>>,
+#[derive(Default)]
+pub struct Connection {
+    from: Option<NodeRef>,
+    to: Option<NodeRef>,
     gain: NeuroFloat,
-    weight_idx: Option<u32>,
-    gater: Option<&'a Node<'a>>,
+    weight: Rc<NeuroFloat>,
+    gater: Option<NodeRef>,
     elegibility: NeuroFloat,
     prev_delta_weight: NeuroFloat,
     total_delta_weight: NeuroFloat,
 }
 
-pub struct Connections<'a> {
-    inbound: Vec<&'a Connection<'a>>,
-    outbound: Vec<&'a Connection<'a>>,
-    gated: Vec<&'a Connection<'a>>,
-    to_self: Option<&'a Connection<'a>>,
+#[derive(Default)]
+pub struct Connections {
+    outbound: Vec<Connection>,
+    inbound: Vec<ConnRef>,
+    gated: Vec<ConnRef>,
+    to_self: Box<Connection>,
 }
 
-pub enum Node<'a> {
+pub enum Node {
     Input {
         value: NeuroFloat,
-        connections: Connections<'a>,
+        connections: Connections,
     },
     Hidden {
         activation: NeuroFloat,
-        connections: Connections<'a>,
+        connections: Connections,
         bias: NeuroFloat,
         squash: Activation,
         state: NeuroFloat,
@@ -129,12 +133,12 @@ pub enum Node<'a> {
     },
 }
 
-pub struct Network<'a> {
-    nodes: LinkedList<Node<'a>>,
-    connections: LinkedList<Connection<'a>>,
+pub struct Network {
+    nodes: Vec<NodeRef>,
+    connections: Vec<ConnRef>,
 }
 
-impl Forward for Node<'_> {
+impl Forward for Node {
     fn forward(&mut self) -> NeuroFloat {
         match self {
             &mut Node::Input {
@@ -161,28 +165,31 @@ impl Forward for Node<'_> {
     }
 }
 
-impl<'a> Connection<'a> {
-    fn one2one(from: &'a Node<'a>, to: &'a Node<'a>) -> Connection<'a> {
+impl Connection {
+    fn one2one(from: NodeRef, to: NodeRef) -> Connection {
         Connection {
             from: Some(from),
             to: Some(to),
+            weight: Rc::<NeuroFloat>::new(0.0),
             ..Default::default()
         }
     }
 }
 
-impl<'a> Group<'a> for Network<'a> {
-    fn connect(&'a mut self, from: &'a mut Node<'a>, to: &'a mut Node<'a>) {
-        self.connections.push_front(Connection::one2one(from, to));
-        let front = self.connections.front().unwrap();
-        match from {
-            &mut Node::Input {
+impl Group for Network {
+    fn connect(&mut self, from: &mut NodeRef, to: NodeRef) {
+        let conn = Cell::new(Connection::one2one(from.clone(), to));
+        let conn_ref = Rc::<Cell<Connection>>::new(conn);
+        self.connections.push(conn_ref.clone());
+        let from_node = Rc::get_mut(from).unwrap().get_mut();
+        match from_node {
+            Node::Input {
                 value: _,
                 ref mut connections,
             } => {
-                connections.inbound.push(front);
+                connections.inbound.push(conn_ref.clone());
             }
-            &mut Node::Hidden {
+            Node::Hidden {
                 activation: _,
                 ref mut connections,
                 bias: _,
@@ -195,20 +202,35 @@ impl<'a> Group<'a> for Network<'a> {
                 total_delta_bias: _,
                 output: _,
             } => {
-                connections.inbound.push(front);
+                connections.inbound.push(conn_ref.clone());
             }
         }
     }
 
-    fn project(&mut self, from: &mut Node, to: Vec<&mut Node>) {}
+    fn project(&mut self, from: NodeRef, to: Vec<NodeRef>) {}
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::Connection;
+    use crate::Network;
+use crate::Connection;
+    use crate::Connections;
     use crate::Forward;
     use crate::Node;
+    use crate::Group;
 
     #[test]
-    fn node() {}
+    fn node() {
+        let input = Node::Input{
+            value: 0.0,
+            connections: Connections::default()
+        };
+
+        let mut network = Network{
+            nodes: vec![],
+            connections: vec![]
+        };
+
+        // network.connect(input, input);
+    }
 }
