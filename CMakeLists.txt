@@ -8,6 +8,8 @@ set(
   MY_PROJECT_SOURCE_FILES
   ${MY_PROJECT_SOURCE_FILES}
   ${CMAKE_CURRENT_LIST_DIR}/main.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/bench1.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/random.hpp
   )
 
 #### Header paths for tidy
