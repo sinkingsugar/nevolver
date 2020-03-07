@@ -1,16 +1,56 @@
-#include <cmath>
+#include "random.hpp"
 #include <functional>
 #include <iostream>
+#include <list>
 #include <memory>
+#include <optional>
 #include <variant>
 #include <vector>
+
+#define _USE_MATH_DEFINES
+#include <cmath>
+
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
+#ifndef M_PIl
+#define M_PIl (3.14159265358979323846264338327950288)
+#endif
 
 namespace Nevolver {
 
 using NeuroFloat = float;
 
 class Node;
+class InputNode;
+class HiddenNode;
 class Weight;
+
+using AnyNode = std::variant<InputNode, HiddenNode>;
+using Group = std::vector<std::reference_wrapper<AnyNode>>;
+
+class Random {
+public:
+  static NeuroFloat next() {
+    return NeuroFloat(_gen()) * (1.0 / NeuroFloat(xorshift::max()));
+  }
+
+  static NeuroFloat normal(NeuroFloat mean, NeuroFloat stdDeviation) {
+    NeuroFloat u1 = 0.0;
+    while (u1 == 0.0) {
+      u1 = next();
+    }
+
+    auto u2 = next();
+    auto rstdNorm = std::sqrt(-2.0 * std::log(u1)) * std::sin(2.0 * M_PI * u2);
+
+    return mean + stdDeviation * rstdNorm;
+  }
+
+private:
+  static inline xorshift _gen{};
+};
 
 struct Squash {
   virtual NeuroFloat operator()(NeuroFloat input) const { return input; }
@@ -34,43 +74,42 @@ struct SigmoidD final : public Derivative {
   }
 };
 
-struct Weight final {
-  NeuroFloat value;
-};
+enum ConnectionPattern { AllToAll, AllToElse, OneToOne };
 
 struct Connection final {
-  Node *from = nullptr;
-  Node *to = nullptr;
-  Node *gater = nullptr;
+  const Node *from;
+  const Node *to;
+  const Node *gater;
 
   NeuroFloat gain{1.0};
   NeuroFloat eligibility{0.0};
   NeuroFloat previousDeltaWeight{0.0};
   NeuroFloat totalDeltaWeight{0.0};
 
-  std::shared_ptr<Weight> weight;
+  NeuroFloat *weight;
 };
 
 struct NodeConnections final {
-  std::vector<Connection *> inbound;
-  std::vector<Connection *> outbound;
-  std::vector<Connection *> gate;
-  Connection self;
+  std::vector<const Connection *> inbound;
+  std::vector<const Connection *> outbound;
+  std::vector<const Connection *> gate;
+  Connection *self = nullptr;
 };
 
 class Node {
 public:
-  Node() {
-    _connections.self.from = this;
-    _connections.self.to = this;
-    _connections.self.weight = std::make_shared<Weight>(Weight{0.0});
-  }
-
   virtual NeuroFloat activate() { return _activation; }
 
   NeuroFloat current() const { return _activation; }
 
   virtual bool is_output() const { return false; }
+
+  virtual void addInboundConnection(const Connection &conn) {
+    _connections.inbound.push_back(&conn);
+  }
+  virtual void addOutboundConnection(const Connection &conn) {
+    _connections.outbound.push_back(&conn);
+  }
 
 protected:
   NeuroFloat _activation{0.0};
@@ -88,12 +127,17 @@ public:
 
   NeuroFloat activate() override {
     _old = _state;
-    _state = _connections.self.gain * _connections.self.weight->value * _state *
-             _bias;
+
+    if (_connections.self) {
+      _state =
+          _connections.self->gain * *_connections.self->weight * _state * _bias;
+    } else {
+      _state = _bias;
+    }
 
     for (auto &connection : _connections.inbound) {
-      _state += connection->from->current() * connection->weight->value *
-                connection->gain;
+      _state +=
+          connection->from->current() * *connection->weight * connection->gain;
     }
 
     auto fwd = _squash(_state);
@@ -108,27 +152,30 @@ public:
 private:
   std::function<NeuroFloat(NeuroFloat)> _squash{SigmoidS()};
   std::function<NeuroFloat(NeuroFloat, NeuroFloat)> _derive{SigmoidD()};
-  NeuroFloat _bias{0.0};
+  NeuroFloat _bias{Random::normal(0.0, 1.0)};
   NeuroFloat _state{0.0};
   NeuroFloat _old{0.0};
-  NeuroFloat _mask{0.0};
+  NeuroFloat _mask{1.0};
   NeuroFloat _derivative{0.0};
   NeuroFloat _previousDeltaBias{0.0};
   NeuroFloat _totalDeltaBias{0.0};
   bool _is_output;
 };
 
-using AnyNode = std::variant<InputNode, HiddenNode>;
-
-using Group = std::vector<std::reference_wrapper<AnyNode>>;
-
 class Network final {
 public:
   static Network Perceptron(int inputs, std::vector<int> hidden, int outputs) {
     Network result{};
 
+    auto total_size = inputs + outputs;
+    for (auto lsize : hidden) {
+      total_size += lsize;
+    }
+
+    result._nodes.reserve(total_size);
+
     Group inputNodes;
-    for (int i = 0; i < outputs; i++) {
+    for (int i = 0; i < inputs; i++) {
       auto &node = result._nodes.emplace_back(InputNode());
       result._inputs.emplace_back(std::get<InputNode>(node));
       inputNodes.emplace_back(node);
@@ -144,7 +191,7 @@ public:
         layer.emplace_back(node);
       }
 
-      result.connect(previous, layer);
+      result.connect(previous, layer, ConnectionPattern::AllToAll);
       previous = layer;
     }
 
@@ -154,14 +201,48 @@ public:
       outputNodes.emplace_back(node);
     }
 
-    result.connect(previous, outputNodes);
+    result.connect(previous, outputNodes, ConnectionPattern::AllToAll);
+
+    // finally setup weights now that we know how many we need
+    result._weights.reserve(result._connections.size());
+    for (auto &conn : result._connections) {
+      auto &w = result._weights.emplace_back(Random::normal(0.0, 1.0));
+      conn.weight = &w;
+    }
 
     return result;
   }
 
-  void connect(AnyNode &from, AnyNode &to) {}
+  void connect(AnyNode &from, AnyNode &to) {
+    Node *fromPtr;
+    std::visit([&fromPtr](auto &&node) { fromPtr = &node; }, from);
+    Node *toPtr;
+    std::visit([&toPtr](auto &&node) { toPtr = &node; }, to);
 
-  void connect(const Group &from, const Group &to) {}
+    auto &conn = _connections.emplace_back(Connection{fromPtr, toPtr, nullptr});
+
+    std::visit([&conn](auto &&node) { node.addOutboundConnection(conn); },
+               from);
+    std::visit([&conn](auto &&node) { node.addInboundConnection(conn); }, to);
+  }
+
+  void connect(const Group &from, const Group &to, ConnectionPattern pattern) {
+    switch (pattern) {
+    case AllToAll: {
+      for (auto &fromNode : from) {
+        for (auto &toNode : to) {
+          connect(fromNode, toNode);
+        }
+      }
+    } break;
+    case AllToElse: {
+
+    } break;
+    case OneToOne: {
+
+    } break;
+    };
+  }
 
   const std::vector<NeuroFloat> &
   activate(const std::vector<NeuroFloat> &input) {
@@ -195,7 +276,8 @@ private:
   std::vector<NeuroFloat> _outputCache;
   std::vector<std::reference_wrapper<InputNode>> _inputs;
   std::vector<AnyNode> _nodes;
-  std::vector<Connection> _connections;
+  std::list<Connection> _connections;
+  std::vector<NeuroFloat> _weights;
 };
 } // namespace Nevolver
 
@@ -203,7 +285,7 @@ int main() {
   std::cout << "Hello!\n";
 
   Nevolver::HiddenNode node;
-  std::cout << node.activate();
+  std::cout << node.activate() << "\n";
 
   auto perceptron = Nevolver::Network::Perceptron(2, {4}, 1);
   auto prediction = perceptron.activate({1.0, 0.0});
