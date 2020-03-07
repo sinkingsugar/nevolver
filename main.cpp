@@ -2,6 +2,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <variant>
 #include <vector>
 
 namespace Nevolver {
@@ -60,56 +61,141 @@ struct NodeConnections final {
 class Node {
 public:
   Node() {
-    connections.self.from = this;
-    connections.self.to = this;
-    connections.self.weight = std::make_shared<Weight>(Weight{0.0});
+    _connections.self.from = this;
+    _connections.self.to = this;
+    _connections.self.weight = std::make_shared<Weight>(Weight{0.0});
   }
 
-  virtual NeuroFloat activate() { return activation; }
+  virtual NeuroFloat activate() { return _activation; }
 
-  NeuroFloat current() const { return activation; }
+  NeuroFloat current() const { return _activation; }
+
+  virtual bool is_output() const { return false; }
 
 protected:
-  NeuroFloat activation{0.0};
-  NodeConnections connections;
+  NeuroFloat _activation{0.0};
+  NodeConnections _connections;
 };
 
 class InputNode final : public Node {
 public:
-  void operator()(NeuroFloat input) { activation = input; }
+  void setInput(NeuroFloat input) { _activation = input; }
 };
 
 class HiddenNode final : public Node {
 public:
-  HiddenNode() : squash(SigmoidS()), derive(SigmoidD()) {}
+  HiddenNode(bool is_output = false) : _is_output(is_output) {}
 
-  virtual NeuroFloat activate() {
-    old = state;
-    state =
-        connections.self.gain * connections.self.weight->value * state * bias;
+  NeuroFloat activate() override {
+    _old = _state;
+    _state = _connections.self.gain * _connections.self.weight->value * _state *
+             _bias;
 
-    for (auto &connection : connections.inbound) {
-      state += connection->from->current() * connection->weight->value *
-               connection->gain;
+    for (auto &connection : _connections.inbound) {
+      _state += connection->from->current() * connection->weight->value *
+                connection->gain;
     }
 
-    auto fwd = squash(state);
-    activation = fwd * mask;
-    derivative = derive(state, fwd);
+    auto fwd = _squash(_state);
+    _activation = fwd * _mask;
+    _derivative = _derive(_state, fwd);
 
-    return activation;
+    return _activation;
+  }
+
+  bool is_output() const override { return _is_output; };
+
+private:
+  std::function<NeuroFloat(NeuroFloat)> _squash{SigmoidS()};
+  std::function<NeuroFloat(NeuroFloat, NeuroFloat)> _derive{SigmoidD()};
+  NeuroFloat _bias{0.0};
+  NeuroFloat _state{0.0};
+  NeuroFloat _old{0.0};
+  NeuroFloat _mask{0.0};
+  NeuroFloat _derivative{0.0};
+  NeuroFloat _previousDeltaBias{0.0};
+  NeuroFloat _totalDeltaBias{0.0};
+  bool _is_output;
+};
+
+using AnyNode = std::variant<InputNode, HiddenNode>;
+
+using Group = std::vector<std::reference_wrapper<AnyNode>>;
+
+class Network final {
+public:
+  static Network Perceptron(int inputs, std::vector<int> hidden, int outputs) {
+    Network result{};
+
+    Group inputNodes;
+    for (int i = 0; i < outputs; i++) {
+      auto &node = result._nodes.emplace_back(InputNode());
+      result._inputs.emplace_back(std::get<InputNode>(node));
+      inputNodes.emplace_back(node);
+    }
+
+    auto &previous = inputNodes;
+
+    std::vector<Group> layers;
+    for (auto lsize : hidden) {
+      auto layer = layers.emplace_back();
+      for (int i = 0; i < lsize; i++) {
+        auto &node = result._nodes.emplace_back(HiddenNode());
+        layer.emplace_back(node);
+      }
+
+      result.connect(previous, layer);
+      previous = layer;
+    }
+
+    Group outputNodes;
+    for (int i = 0; i < outputs; i++) {
+      auto &node = result._nodes.emplace_back(HiddenNode(true));
+      outputNodes.emplace_back(node);
+    }
+
+    result.connect(previous, outputNodes);
+
+    return result;
+  }
+
+  void connect(AnyNode &from, AnyNode &to) {}
+
+  void connect(const Group &from, const Group &to) {}
+
+  const std::vector<NeuroFloat> &
+  activate(const std::vector<NeuroFloat> &input) {
+    _outputCache.clear();
+
+    auto isize = input.size();
+
+    if (isize != _inputs.size())
+      throw std::runtime_error(
+          "Invalid activation input size, differs from actual "
+          "network input size.");
+
+    for (size_t i = 0; i < isize; i++) {
+      _inputs[i].get().setInput(input[i]);
+    }
+
+    for (auto &vnode : _nodes) {
+      std::visit(
+          [this](auto &&node) {
+            auto activation = node.activate();
+            if (node.is_output())
+              _outputCache.push_back(activation);
+          },
+          vnode);
+    }
+
+    return _outputCache;
   }
 
 private:
-  std::function<NeuroFloat(NeuroFloat)> squash;
-  std::function<NeuroFloat(NeuroFloat, NeuroFloat)> derive;
-  NeuroFloat bias;
-  NeuroFloat state;
-  NeuroFloat old;
-  NeuroFloat mask;
-  NeuroFloat derivative;
-  NeuroFloat previousDeltaBias;
-  NeuroFloat totalDeltaBias;
+  std::vector<NeuroFloat> _outputCache;
+  std::vector<std::reference_wrapper<InputNode>> _inputs;
+  std::vector<AnyNode> _nodes;
+  std::vector<Connection> _connections;
 };
 } // namespace Nevolver
 
@@ -118,6 +204,10 @@ int main() {
 
   Nevolver::HiddenNode node;
   std::cout << node.activate();
+
+  auto perceptron = Nevolver::Network::Perceptron(2, {4}, 1);
+  auto prediction = perceptron.activate({1.0, 0.0});
+  std::cout << prediction[0] << "\n";
 
   return 0;
 }
