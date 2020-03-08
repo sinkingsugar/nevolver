@@ -7,9 +7,11 @@ add_compile_options(-Wall -march=sandybridge)
 set(
   MY_PROJECT_SOURCE_FILES
   ${MY_PROJECT_SOURCE_FILES}
+  ${CMAKE_CURRENT_LIST_DIR}/nevolver.hpp
   ${CMAKE_CURRENT_LIST_DIR}/main.cpp
   ${CMAKE_CURRENT_LIST_DIR}/bench1.cpp
   ${CMAKE_CURRENT_LIST_DIR}/random.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/squash.hpp
   )
 
 #### Header paths for tidy

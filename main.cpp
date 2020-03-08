@@ -1,26 +1,7 @@
-#include "random.hpp"
-#include <functional>
-#include <iostream>
-#include <list>
-#include <memory>
-#include <optional>
-#include <variant>
-#include <vector>
-
-#define _USE_MATH_DEFINES
-#include <cmath>
-
-#ifndef M_PI
-#define M_PI (3.14159265358979323846)
-#endif
-
-#ifndef M_PIl
-#define M_PIl (3.14159265358979323846264338327950288)
-#endif
+#include "nevolver.hpp"
+#include "squash.hpp"
 
 namespace Nevolver {
-
-using NeuroFloat = float;
 
 class Node;
 class InputNode;
@@ -49,32 +30,16 @@ public:
   }
 
 private:
+#ifdef NDEBUG
+  static inline std::random_device _rd{};
+  static inline xorshift _gen{_rd};
+#else
   static inline xorshift _gen{};
-};
-
-struct Squash {
-  virtual NeuroFloat operator()(NeuroFloat input) const { return input; }
-};
-
-struct Derivative {
-  virtual NeuroFloat operator()(NeuroFloat state, NeuroFloat fwd) const {
-    return fwd;
-  }
-};
-
-struct SigmoidS final : public Squash {
-  NeuroFloat operator()(NeuroFloat input) const override {
-    return 1.0 / (1.0 + std::exp(-input));
-  }
-};
-
-struct SigmoidD final : public Derivative {
-  NeuroFloat operator()(NeuroFloat state, NeuroFloat fwd) const override {
-    return fwd * (1 - fwd);
-  }
+#endif
 };
 
 enum ConnectionPattern { AllToAll, AllToElse, OneToOne };
+enum GatingPattern { Input, Output, Self };
 
 struct ConnectionXTraces {
   std::vector<const Node *> nodes;
@@ -106,13 +71,6 @@ class Node {
 public:
   NeuroFloat current() const { return _activation; }
 
-  void addInboundConnection(Connection &conn) {
-    _connections.inbound.push_back(&conn);
-  }
-  void addOutboundConnection(Connection &conn) {
-    _connections.outbound.push_back(&conn);
-  }
-
   const NodeConnections &connections() const { return _connections; }
 
   NeuroFloat responsibility() const { return _responsibility; }
@@ -133,6 +91,15 @@ public:
                  NeuroFloat target = 0.0) {
     return as_underlying().doPropagate(rate, momentum, update, target);
   }
+
+  void addInboundConnection(Connection &conn) {
+    _connections.inbound.push_back(&conn);
+  }
+  void addOutboundConnection(Connection &conn) {
+    _connections.outbound.push_back(&conn);
+  }
+
+  void addGate(Connection &conn) { _connections.gate.push_back(&conn); }
 
   bool is_output() const { return as_underlying().getIsOutput(); }
 
@@ -330,6 +297,14 @@ public:
     _previousDeltaBias = deltaBias;
   }
 
+  void setSquash(std::function<NeuroFloat(NeuroFloat)> squash,
+                 std::function<NeuroFloat(NeuroFloat, NeuroFloat)> derive) {
+    _squash = squash;
+    _derive = derive;
+  }
+
+  void setBias(NeuroFloat bias) { _bias = bias; }
+
 private:
   std::function<NeuroFloat(NeuroFloat)> _squash{SigmoidS()};
   std::function<NeuroFloat(NeuroFloat, NeuroFloat)> _derive{SigmoidD()};
@@ -347,113 +322,8 @@ private:
   NeuroFloat _gated;
 };
 
-class Network final {
+class Network {
 public:
-  static Network Perceptron(int inputs, std::vector<int> hidden, int outputs) {
-    Network result{};
-
-    auto total_size = inputs + outputs;
-    for (auto lsize : hidden) {
-      total_size += lsize;
-    }
-
-    result._nodes.reserve(total_size);
-
-    Group inputNodes;
-    for (int i = 0; i < inputs; i++) {
-      auto &node = result._nodes.emplace_back(InputNode());
-      result._inputs.emplace_back(std::get<InputNode>(node));
-      inputNodes.emplace_back(node);
-    }
-
-    auto &previous = inputNodes;
-
-    std::vector<Group> layers;
-    for (auto lsize : hidden) {
-      auto layer = layers.emplace_back();
-      for (int i = 0; i < lsize; i++) {
-        auto &node = result._nodes.emplace_back(HiddenNode());
-        layer.emplace_back(node);
-      }
-
-      result.connect(previous, layer, ConnectionPattern::AllToAll);
-      previous = layer;
-    }
-
-    Group outputNodes;
-    for (int i = 0; i < outputs; i++) {
-      auto &node = result._nodes.emplace_back(HiddenNode(true));
-      outputNodes.emplace_back(node);
-    }
-
-    result.connect(previous, outputNodes, ConnectionPattern::AllToAll);
-
-    // finally setup weights now that we know how many we need
-    result._weights.reserve(result._connections.size());
-    for (auto &conn : result._connections) {
-      auto &w = result._weights.emplace_back(Random::normal(0.0, 1.0));
-      conn.weight = &w;
-    }
-
-    return result;
-  }
-
-  void connect(AnyNode &from, AnyNode &to) {
-    Node *fromPtr;
-    std::visit([&fromPtr](auto &&node) { fromPtr = &node; }, from);
-    Node *toPtr;
-    std::visit([&toPtr](auto &&node) { toPtr = &node; }, to);
-
-    auto &conn = _connections.emplace_back(Connection{fromPtr, toPtr, nullptr});
-
-    std::visit([&conn](auto &&node) { node.addOutboundConnection(conn); },
-               from);
-    std::visit([&conn](auto &&node) { node.addInboundConnection(conn); }, to);
-  }
-
-  void connect(const Group &from, AnyNode &to) {
-    for (auto &fromNode : from) {
-      connect(fromNode, to);
-    }
-  }
-
-  void connect(AnyNode &from, const Group &to) {
-    for (auto &toNode : to) {
-      connect(from, toNode);
-    }
-  }
-
-  void connect(const Group &from, const Group &to, ConnectionPattern pattern) {
-    switch (pattern) {
-    case AllToAll: {
-      for (auto &fromNode : from) {
-        for (auto &toNode : to) {
-          connect(fromNode, toNode);
-        }
-      }
-    } break;
-    case AllToElse: {
-      for (auto &fromNode : from) {
-        for (auto &toNode : to) {
-          if (&from == &to)
-            continue;
-          connect(fromNode, toNode);
-        }
-      }
-    } break;
-    case OneToOne: {
-      auto fsize = from.size();
-      if (fsize != to.size()) {
-        throw std::runtime_error(
-            "Connect OneToOne requires 2 node groups with the same size.");
-      }
-      for (size_t i = 0; i < fsize; i++) {
-        connect(from[i], to[i]);
-      }
-    } break;
-    };
-  }
-
   const std::vector<NeuroFloat> &
   activate(const std::vector<NeuroFloat> &input) {
     _outputCache.clear();
@@ -537,12 +407,316 @@ public:
     return mean;
   }
 
+protected:
+  Connection &connect(AnyNode &from, AnyNode &to) {
+    Node *fromPtr;
+    std::visit([&fromPtr](auto &&node) { fromPtr = &node; }, from);
+    Node *toPtr;
+    std::visit([&toPtr](auto &&node) { toPtr = &node; }, to);
+
+    auto &conn = _connections.emplace_back(Connection{fromPtr, toPtr, nullptr});
+
+    std::visit([&conn](auto &&node) { node.addOutboundConnection(conn); },
+               from);
+    std::visit([&conn](auto &&node) { node.addInboundConnection(conn); }, to);
+
+    return conn;
+  }
+
+  std::vector<std::reference_wrapper<Connection>> connect(const Group &from,
+                                                          AnyNode &to) {
+    std::vector<std::reference_wrapper<Connection>> conns;
+    for (auto &fromNode : from) {
+      conns.emplace_back(connect(fromNode, to));
+    }
+    return conns;
+  }
+
+  std::vector<std::reference_wrapper<Connection>> connect(AnyNode &from,
+                                                          const Group &to) {
+    std::vector<std::reference_wrapper<Connection>> conns;
+    for (auto &toNode : to) {
+      conns.emplace_back(connect(from, toNode));
+    }
+    return conns;
+  }
+
+  std::vector<std::reference_wrapper<Connection>>
+  connect(const Group &from, const Group &to, ConnectionPattern pattern) {
+    std::vector<std::reference_wrapper<Connection>> conns;
+    switch (pattern) {
+    case AllToAll: {
+      for (auto &fromNode : from) {
+        for (auto &toNode : to) {
+          conns.emplace_back(connect(fromNode, toNode));
+        }
+      }
+    } break;
+    case AllToElse: {
+      for (auto &fromNode : from) {
+        for (auto &toNode : to) {
+          if (&from == &to)
+            continue;
+          conns.emplace_back(connect(fromNode, toNode));
+        }
+      }
+    } break;
+    case OneToOne: {
+      auto fsize = from.size();
+      if (fsize != to.size()) {
+        throw std::runtime_error(
+            "Connect OneToOne requires 2 node groups with the same size.");
+      }
+      for (size_t i = 0; i < fsize; i++) {
+        conns.emplace_back(connect(from[i], to[i]));
+      }
+    } break;
+    };
+    return conns;
+  }
+
+  Group addMemoryCell(int size) {
+    Group res;
+    for (int y = 0; y < size; y++) {
+      auto &node = _nodes.emplace_back(HiddenNode(false, true));
+      auto &hiddenNode = std::get<HiddenNode>(node);
+      hiddenNode.setBias(0.0);
+      hiddenNode.setSquash(IdentityS(), IdentityD());
+      res.emplace_back(node);
+    }
+    return res;
+  }
+
+  void gate(AnyNode &gater, Connection &conn) {
+    Node *gaterPtr;
+    std::visit([&gaterPtr](auto &&node) { gaterPtr = &node; }, gater);
+    conn.gater = gaterPtr;
+    std::visit([&conn](auto &&node) { node.addGate(conn); }, gater);
+  }
+
+  void gate(AnyNode &gater,
+            std::vector<std::reference_wrapper<Connection>> connections) {
+    for (auto &conn : connections) {
+      gate(gater, conn);
+    }
+  }
+
+  void gate(const Group &group,
+            std::vector<std::reference_wrapper<Connection>> connections,
+            GatingPattern pattern) {
+    std::set<const Node *> nodesFrom;
+    std::set<const Node *> nodesTo;
+    for (auto &conn : connections) {
+      nodesFrom.insert(conn.get().from);
+      nodesTo.insert(conn.get().to);
+    }
+
+    auto gsize = group.size();
+    switch (pattern) {
+    case GatingPattern::Input: {
+      assert(gsize == nodesTo.size());
+      size_t idx = 0;
+      for (auto node : nodesTo) {
+        auto &gater = group[idx++];
+        for (auto &conn : node->connections().inbound) {
+          gate(gater, *conn);
+        }
+      }
+    } break;
+    case GatingPattern::Output: {
+      assert(gsize == nodesFrom.size());
+      size_t idx = 0;
+      for (auto node : nodesFrom) {
+        auto &gater = group[idx++];
+        for (auto &conn : node->connections().outbound) {
+          gate(gater, *conn);
+        }
+      }
+    } break;
+    case GatingPattern::Self: {
+      size_t idx = 0;
+      for (auto node : nodesFrom) {
+        auto &gater = group[idx++];
+        idx = idx % gsize;
+        for (auto &conn : connections) {
+          auto connPtr = &conn.get();
+          if (connPtr == node->connections().self) {
+            gate(gater, conn);
+          }
+        }
+      }
+    } break;
+    }
+  }
+
+  std::vector<std::reference_wrapper<InputNode>> _inputs;
+  std::list<Connection> _connections;
+  std::vector<AnyNode> _nodes;
+  std::vector<NeuroFloat> _weights;
+
 private:
   std::vector<NeuroFloat> _outputCache;
-  std::vector<std::reference_wrapper<InputNode>> _inputs;
-  std::vector<AnyNode> _nodes;
-  std::list<Connection> _connections;
-  std::vector<NeuroFloat> _weights;
+};
+
+class NARX final : public Network {
+public:
+  NARX(int inputs, std::vector<int> hidden, int outputs, int input_memory,
+       int output_memory) {
+    // Need to pre allocate
+    // to avoid vector reallocations, we need valid ptr/refs
+    auto total_size =
+        inputs + (inputs * input_memory) + outputs + (outputs * output_memory);
+    for (auto lsize : hidden) {
+      total_size += lsize;
+    }
+    _nodes.reserve(total_size);
+
+    // insertion order = activation order = MATTERS
+
+    // keep track of pure ringbuffer memory conns we need to fix in terms of
+    // weights
+    std::vector<std::reference_wrapper<Connection>> memoryTunnels;
+
+    Group inputNodes;
+    for (int i = 0; i < inputs; i++) {
+      auto &node = _nodes.emplace_back(InputNode());
+      _inputs.emplace_back(std::get<InputNode>(node));
+      inputNodes.emplace_back(node);
+    }
+
+    // TODO really make creating stuff easier :)
+    // but for now... we need to reverse those nodes activations
+    // so we store their position in the array
+    std::vector<Group> outputMemory;
+    outputMemory.resize(output_memory);
+    for (int i = output_memory; i > 0; i--) {
+      auto memStart = _nodes.end();
+      outputMemory[i - 1] = addMemoryCell(outputs);
+      auto memEnd = _nodes.end();
+      std::reverse(memStart, memEnd);
+    }
+
+    Group *previous = &outputMemory[0];
+    for (int i = 1; i < output_memory; i++) {
+      auto conns =
+          connect(*previous, outputMemory[i], ConnectionPattern::OneToOne);
+      memoryTunnels.insert(memoryTunnels.end(), conns.begin(), conns.end());
+      previous = &outputMemory[i];
+    }
+
+    previous = &inputNodes;
+
+    std::vector<Group> layers;
+    // must pre alloc as we take ref!
+    layers.reserve(hidden.size());
+    for (auto lsize : hidden) {
+      auto &layer = layers.emplace_back();
+      for (int i = 0; i < lsize; i++) {
+        auto &node = _nodes.emplace_back(HiddenNode());
+        layer.emplace_back(node);
+      }
+
+      connect(*previous, layer, ConnectionPattern::AllToAll);
+      previous = &layer;
+    }
+
+    std::vector<Group> inputMemory;
+    inputMemory.resize(input_memory);
+    for (int i = input_memory; i > 0; i--) {
+      auto memStart = _nodes.end();
+      inputMemory[i - 1] = addMemoryCell(inputs);
+      auto memEnd = _nodes.end();
+      std::reverse(memStart, memEnd);
+    }
+
+    previous = &inputMemory[0];
+    for (int i = 1; i < input_memory; i++) {
+      auto conns =
+          connect(*previous, inputMemory[i], ConnectionPattern::OneToOne);
+      memoryTunnels.insert(memoryTunnels.end(), conns.begin(), conns.end());
+      previous = &inputMemory[i];
+    }
+
+    Group outputNodes;
+    for (int i = 0; i < outputs; i++) {
+      auto &node = _nodes.emplace_back(HiddenNode(true));
+      outputNodes.emplace_back(node);
+    }
+
+    connect(*previous, outputNodes, ConnectionPattern::AllToAll);
+
+    std::reverse(inputMemory.begin(), inputMemory.end());
+    connect(inputNodes, inputMemory.back(), ConnectionPattern::OneToOne);
+    for (auto &group : inputMemory) {
+      connect(group, layers[0], ConnectionPattern::AllToAll);
+    }
+    std::reverse(outputMemory.begin(), outputMemory.end());
+    connect(outputNodes, outputMemory.back(), ConnectionPattern::OneToOne);
+    for (auto &group : outputMemory) {
+      connect(group, layers[0], ConnectionPattern::AllToAll);
+    }
+
+    // finally setup weights now that we know how many we need
+    _weights.reserve(_connections.size());
+    for (auto &conn : _connections) {
+      auto &w = _weights.emplace_back(Random::normal(0.0, 1.0));
+      conn.weight = &w;
+    }
+
+    // Fix up memory weights
+    for (auto &conn : memoryTunnels) {
+      *conn.get().weight = 1.0;
+    }
+  }
+};
+
+class Perceptron final : public Network {
+public:
+  Perceptron(int inputs, std::vector<int> hidden, int outputs) {
+    auto total_size = inputs + outputs;
+    for (auto lsize : hidden) {
+      total_size += lsize;
+    }
+    _nodes.reserve(total_size);
+
+    Group inputNodes;
+    for (int i = 0; i < inputs; i++) {
+      auto &node = _nodes.emplace_back(InputNode());
+      _inputs.emplace_back(std::get<InputNode>(node));
+      inputNodes.emplace_back(node);
+    }
+
+    Group *previous = &inputNodes;
+
+    std::vector<Group> layers;
+    // must pre alloc as we take ref!
+    layers.reserve(hidden.size());
+    for (auto lsize : hidden) {
+      auto &layer = layers.emplace_back();
+      for (int i = 0; i < lsize; i++) {
+        auto &node = _nodes.emplace_back(HiddenNode());
+        layer.emplace_back(node);
+      }
+
+      connect(*previous, layer, ConnectionPattern::AllToAll);
+      previous = &layer;
+    }
+
+    Group outputNodes;
+    for (int i = 0; i < outputs; i++) {
+      auto &node = _nodes.emplace_back(HiddenNode(true));
+      outputNodes.emplace_back(node);
+    }
+
+    connect(*previous, outputNodes, ConnectionPattern::AllToAll);
+
+    // finally setup weights now that we know how many we need
+    _weights.reserve(_connections.size());
+    for (auto &conn : _connections) {
+      auto &w = _weights.emplace_back(Random::normal(0.0, 1.0));
+      conn.weight = &w;
+    }
+  }
 };
 } // namespace Nevolver
 
@@ -552,11 +726,44 @@ int main() {
   Nevolver::HiddenNode node;
   std::cout << node.activate() << "\n";
 
-  auto perceptron = Nevolver::Network::Perceptron(2, {4}, 1);
-  for (auto i = 0; i < 250; i++) {
-    auto prediction = perceptron.activate({1.0, 0.0});
-    std::cout << "Prediction: " << prediction[0] << "\n";
-    std::cout << "MSE: " << perceptron.propagate({1.0}) << "\n";
+  {
+    auto perceptron = Nevolver::Perceptron(2, {4, 4}, 1);
+    for (auto i = 0; i < 50000; i++) {
+      perceptron.activate({0.0, 0.0});
+      perceptron.propagate({1.0});
+      perceptron.activate({0.0, 1.0});
+      perceptron.propagate({0.0});
+      perceptron.activate({1.0, 0.0});
+      perceptron.propagate({0.0});
+      perceptron.activate({1.0, 1.0});
+      auto err = perceptron.propagate({1.0});
+      if (!(i % 10000))
+        std::cout << "MSE: " << err << "\n";
+    }
+    std::cout << perceptron.activate({0.0, 0.0})[0] << " (1.0)\n";
+    std::cout << perceptron.activate({0.0, 1.0})[0] << " (0.0)\n";
+    std::cout << perceptron.activate({1.0, 0.0})[0] << " (0.0)\n";
+    std::cout << perceptron.activate({1.0, 1.0})[0] << " (1.0)\n";
+  }
+
+  {
+    auto perceptron = Nevolver::NARX(2, {4, 2}, 1, 4, 4);
+    for (auto i = 0; i < 5000; i++) {
+      perceptron.activate({0.0, 0.0});
+      perceptron.propagate({1.0});
+      perceptron.activate({0.0, 1.0});
+      perceptron.propagate({0.0});
+      perceptron.activate({1.0, 0.0});
+      perceptron.propagate({0.0});
+      perceptron.activate({1.0, 1.0});
+      auto err = perceptron.propagate({1.0});
+      if (!(i % 1000))
+        std::cout << "MSE: " << err << "\n";
+    }
+    std::cout << perceptron.activate({0.0, 0.0})[0] << " (1.0)\n";
+    std::cout << perceptron.activate({0.0, 1.0})[0] << " (0.0)\n";
+    std::cout << perceptron.activate({1.0, 0.0})[0] << " (0.0)\n";
+    std::cout << perceptron.activate({1.0, 1.0})[0] << " (1.0)\n";
   }
 
   return 0;
