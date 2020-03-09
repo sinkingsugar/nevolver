@@ -9,8 +9,10 @@ int main() {
   std::cout << "Hello!\n";
 
   Nevolver::HiddenNode node;
-  std::cout << node.activate() << "\n";
+  Nevolver::print(node.activate());
+  std::cout << "\n";
 
+#ifndef NEVOLVER_WIDE
   {
     auto perceptron = Nevolver::Perceptron(2, {4, 4}, 1);
     for (auto i = 0; i < 50000; i++) {
@@ -87,6 +89,7 @@ int main() {
       }
     }
   }
+#endif
 
   return 0;
 }

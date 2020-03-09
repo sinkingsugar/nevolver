@@ -111,7 +111,7 @@ public:
 
     // Fix up memory weights
     for (auto &conn : memoryTunnels) {
-      *conn.get().weight = 1.0;
+      *conn.get().weight = NeuroFloatOnes;
     }
   }
 
@@ -120,7 +120,7 @@ public:
     for (int y = 0; y < size; y++) {
       auto &node = _nodes.emplace_back(HiddenNode(false, true));
       auto &hiddenNode = std::get<HiddenNode>(node);
-      hiddenNode.setBias(0.0);
+      hiddenNode.setBias(NeuroFloatZeros);
       hiddenNode.setSquash(IdentityS(), IdentityD());
       res.emplace_back(node);
     }

@@ -26,8 +26,8 @@ public:
 
   NeuroFloat activateFast() { return as_underlying().doFastActivate(); }
 
-  void propagate(NeuroFloat rate, NeuroFloat momentum, bool update,
-                 NeuroFloat target = 0.0) {
+  void propagate(double rate, double momentum, bool update,
+                 NeuroFloat target = NeuroFloatZeros) {
     return as_underlying().doPropagate(rate, momentum, update, target);
   }
 
@@ -64,7 +64,7 @@ public:
 
   NeuroFloat doFastActivate() { return _activation; }
 
-  void doPropagate(NeuroFloat rate, NeuroFloat momentum, bool update,
+  void doPropagate(double rate, double momentum, bool update,
                    NeuroFloat target) {}
 
   bool getIsOutput() const { return false; }

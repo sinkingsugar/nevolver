@@ -19,7 +19,7 @@ enum NetworkMutations {
 
 class Network {
 public:
-  const std::vector<NeuroFloat> &
+  virtual const std::vector<NeuroFloat> &
   activate(const std::vector<NeuroFloat> &input) {
     _outputCache.clear();
 
@@ -47,7 +47,7 @@ public:
     return _outputCache;
   }
 
-  const std::vector<NeuroFloat> &
+  virtual const std::vector<NeuroFloat> &
   activateFast(const std::vector<NeuroFloat> &input) {
     _outputCache.clear();
 
@@ -75,9 +75,9 @@ public:
     return _outputCache;
   }
 
-  NeuroFloat propagate(const std::vector<NeuroFloat> &targets,
-                       NeuroFloat rate = 0.3, NeuroFloat momentum = 0.0,
-                       bool update = true) {
+  virtual NeuroFloat propagate(const std::vector<NeuroFloat> &targets,
+                               double rate = 0.3, double momentum = 0.0,
+                               bool update = true) {
     size_t outputIdx = targets.size();
     _outputCache.resize(outputIdx); // reuse for MSE
     for (auto it = _nodes.rbegin(); it != _nodes.rend(); ++it) {
@@ -86,53 +86,69 @@ public:
             if (node.is_output()) {
               outputIdx--;
               node.propagate(rate, momentum, update, targets[outputIdx]);
+#ifdef NEVOLVER_WIDE
+              for (int i = 0; i < NeuroFloatWidth; i++) {
+                _outputCache[outputIdx][i] =
+                    __builtin_pow(node.current()[i] - targets[outputIdx][i], 2);
+              }
+#else
               _outputCache[outputIdx] =
                   std::pow(node.current() - targets[outputIdx], 2);
+#endif
             } else {
               node.propagate(rate, momentum, update);
             }
           },
           *it);
     }
-    NeuroFloat mean = 0.0;
+    NeuroFloat mean = NeuroFloatZeros;
     for (auto err : _outputCache) {
       mean += err;
     }
-    mean /= NeuroFloat(_outputCache.size());
+
+    NEUROWIDE(wsize, double(_outputCache.size()));
+    mean /= wsize;
     return mean;
   }
 
-  void clear() {
+  virtual void clear() {
     for (auto &node : _nodes) {
       std::visit([](auto &&node) { node.clear(); }, node);
     }
   }
 
-  void mutate(const std::vector<NetworkMutations> &network_pool,
-              double network_rate, const std::vector<NodeMutations> &node_pool,
-              double node_rate, double connection_rate) {
+  virtual void mutate(const std::vector<NetworkMutations> &network_pool,
+                      double network_rate,
+                      const std::vector<NodeMutations> &node_pool,
+                      double node_rate, double weight_rate) {
     for (auto &node : _nodes) {
       for (auto mutation : node_pool) {
-        auto chance = Random::next();
+        auto chance = Random::nextDouble();
         if (chance < node_rate) {
           std::visit([mutation](auto &&node) { node.mutate(mutation); }, node);
         }
       }
     }
 
-    for (auto &conn : _connections) {
-      auto chance = Random::next();
-      if (chance < connection_rate) {
-        conn.mutate();
+    for (auto &weight : _weights) {
+      auto chance = Random::nextDouble();
+      if (chance < weight_rate) {
+        weight += Random::normal(0.0, 0.1);
       }
     }
 
     for (auto mutation : network_pool) {
-      auto chance = Random::next();
+      auto chance = Random::nextDouble();
       if (chance < network_rate) {
         doMutation(mutation);
       }
     }
+  }
+
+  virtual Network crossover(const Network &other) {
+    Network offspring = *this;
+    // FIXME not so easy, must fixup all references also!
+    return offspring;
   }
 
 protected:

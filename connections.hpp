@@ -24,11 +24,6 @@ struct Connection final {
   NeuroFloat *weight;
 
   ConnectionXTraces xtraces;
-
-  void mutate() {
-    assert(weight);
-    *weight += Random::normal(0.0, 0.1);
-  }
 };
 
 struct NodeConnections final {

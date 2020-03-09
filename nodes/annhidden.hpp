@@ -43,7 +43,7 @@ public:
         auto plus =
             node->connections().self && node->connections().self->gater == this
                 ? static_cast<const HiddenNode *>(node)->_old
-                : 0.0;
+                : NeuroFloatZeros;
         _tmpInfluence.emplace_back(
             *connection->weight * connection->from->current() + plus);
       }
@@ -115,13 +115,16 @@ public:
     return _activation;
   }
 
-  void doPropagate(NeuroFloat rate, NeuroFloat momentum, bool update,
+  void doPropagate(double rate, double momentum, bool update,
                    NeuroFloat target) {
+    NEUROWIDE(wrate, rate);
+    NEUROWIDE(wmomentum, momentum);
+
     if (_is_output) {
       _responsibility = target - _activation;
       _projected = _responsibility;
     } else {
-      NeuroFloat error = 0.0;
+      NeuroFloat error = NeuroFloatZeros;
 
       for (auto connection : _connections.outbound) {
         error += connection->to->responsibility() * *connection->weight *
@@ -129,14 +132,14 @@ public:
       }
       _projected = _derivative * error;
 
-      error = 0.0;
+      error = NeuroFloatZeros;
 
       for (auto connection : _connections.gate) {
         auto node = connection->to;
         NeuroFloat influence =
             node->connections().self && node->connections().self->gater == this
                 ? static_cast<const HiddenNode *>(node)->_old
-                : 0.0;
+                : NeuroFloatZeros;
         influence += *connection->weight * connection->from->current();
         error += connection->to->responsibility() * influence;
       }
@@ -160,16 +163,16 @@ public:
         gradient += node->responsibility() * value;
       }
 
-      auto deltaWeight = rate * gradient * _mask;
+      auto deltaWeight = wrate * gradient * _mask;
       if (update) {
-        deltaWeight += momentum * connection->previousDeltaWeight;
+        deltaWeight += wmomentum * connection->previousDeltaWeight;
         *connection->weight += deltaWeight;
         connection->previousDeltaWeight = deltaWeight;
       }
     }
 
-    auto deltaBias = rate * _responsibility;
-    deltaBias += momentum * _previousDeltaBias;
+    auto deltaBias = wrate * _responsibility;
+    deltaBias += wmomentum * _previousDeltaBias;
     _bias += deltaBias;
     _previousDeltaBias = deltaBias;
   }
@@ -184,19 +187,19 @@ public:
 
   void doClear() {
     for (auto &conn : _connections.inbound) {
-      conn->eligibility = 0.0;
+      conn->eligibility = NeuroFloatZeros;
       conn->xtraces.nodes.clear();
       conn->xtraces.values.clear();
     }
     for (auto &conn : _connections.gate) {
-      conn->gain = 0.0;
+      conn->gain = NeuroFloatZeros;
     }
-    _responsibility = 0.0;
-    _projected = 0.0;
-    _gated = 0.0;
-    _old = 0.0;
-    _state = 0.0;
-    _activation = 0.0;
+    _responsibility = NeuroFloatZeros;
+    _projected = NeuroFloatZeros;
+    _gated = NeuroFloatZeros;
+    _old = NeuroFloatZeros;
+    _state = NeuroFloatZeros;
+    _activation = NeuroFloatZeros;
   }
 
   void doMutate(NodeMutations mutation) {

@@ -9,22 +9,32 @@ struct IdentityS final {
 };
 
 struct IdentityD final {
-  NeuroFloat operator()(NeuroFloat state, NeuroFloat fwd) const { return 1; }
+  NeuroFloat operator()(NeuroFloat state, NeuroFloat fwd) const {
+    return NeuroFloatOnes;
+  }
 };
 
 struct SigmoidS final {
   NeuroFloat operator()(NeuroFloat input) const {
+#ifdef NEVOLVER_WIDE
+    NeuroFloat res;
+    for (int i = 0; i < NeuroFloatWidth; i++) {
+      res[i] = 1.0 / (1.0 + __builtin_exp(-input[i]));
+    }
+    return res;
+#else
     return 1.0 / (1.0 + std::exp(-input));
+#endif
   }
 };
 
 struct SigmoidD final {
   NeuroFloat operator()(NeuroFloat state, NeuroFloat fwd) const {
-    return fwd * (1 - fwd);
+    return fwd * (1.0 - fwd);
   }
 };
 
-struct Squash {
+struct Squash final {
   static inline std::array<std::function<NeuroFloat(NeuroFloat)>, 2> All{
       IdentityS(), SigmoidS()};
 
