@@ -23,7 +23,7 @@
 #define M_PIl (3.14159265358979323846264338327950288)
 #endif
 
-// #define NEVOLVER_WIDE8
+#define NEVOLVER_WIDE8
 
 namespace Nevolver {
 #ifdef NEVOLVER_WIDE8
@@ -75,7 +75,7 @@ public:
 #ifdef NEVOLVER_WIDE
     NeuroFloat res;
     for (int i = 0; i < NeuroFloatWidth; i++) {
-      res[0] = nextDouble();
+      res[i] = nextDouble();
     }
     return res;
 #else
@@ -101,7 +101,7 @@ public:
 #ifdef NEVOLVER_WIDE
     NeuroFloat res;
     for (int i = 0; i < NeuroFloatWidth; i++) {
-      res[0] = normalDouble(mean, stdDeviation);
+      res[i] = normalDouble(mean, stdDeviation);
     }
     return res;
 #else

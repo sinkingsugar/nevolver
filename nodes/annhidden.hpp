@@ -226,8 +226,8 @@ private:
   bool _is_constant;
   std::vector<const Node *> _tmpNodes;
   std::vector<NeuroFloat> _tmpInfluence;
-  NeuroFloat _projected;
-  NeuroFloat _gated;
+  NeuroFloat _projected{NeuroFloatZeros};
+  NeuroFloat _gated{NeuroFloatZeros};
 };
 } // namespace Nevolver
 

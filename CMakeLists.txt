@@ -18,6 +18,7 @@ set(
   ${CMAKE_CURRENT_LIST_DIR}/network.hpp
   ${CMAKE_CURRENT_LIST_DIR}/networks/perceptron.hpp
   ${CMAKE_CURRENT_LIST_DIR}/networks/narx.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/networks/lstm.hpp
   )
 
 #### Header paths for tidy

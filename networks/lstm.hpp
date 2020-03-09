@@ -66,27 +66,30 @@ public:
 
     // Do connections now!
     for (size_t i = 0; i < hidden.size(); i++) {
-      auto &inputGate  = layers[(i * 4) + 0];
+      auto &inputGate = layers[(i * 4) + 0];
       auto &forgetGate = layers[(i * 4) + 1];
       auto &memoryCell = layers[(i * 4) + 2];
       auto &outputGate = layers[(i * 4) + 3];
 
       // always connect input to inners
-      auto inputConn = connect(inputNodes, memoryCell, ConnectionPattern::AllToAll);
+      auto inputConn =
+          connect(inputNodes, memoryCell, ConnectionPattern::AllToAll);
       connect(inputNodes, inputGate, ConnectionPattern::AllToAll);
       connect(inputNodes, forgetGate, ConnectionPattern::AllToAll);
       connect(inputNodes, outputGate, ConnectionPattern::AllToAll);
 
       std::vector<std::reference_wrapper<Connection>> cell;
-      if(previous != &inputNodes) {
+      if (previous != &inputNodes) {
         cell = connect(*previous, memoryCell, ConnectionPattern::AllToAll);
         connect(*previous, inputGate, ConnectionPattern::AllToAll);
         connect(*previous, forgetGate, ConnectionPattern::AllToAll);
         connect(*previous, outputGate, ConnectionPattern::AllToAll);
       }
 
-      auto outputConn = connect(memoryCell, outputNodes, ConnectionPattern::AllToAll);
-      auto forgetConn = connect(memoryCell, memoryCell, ConnectionPattern::OneToOne);
+      auto outputConn =
+          connect(memoryCell, outputNodes, ConnectionPattern::AllToAll);
+      auto forgetConn =
+          connect(memoryCell, memoryCell, ConnectionPattern::OneToOne);
 
       connect(memoryCell, inputGate, ConnectionPattern::AllToAll);
       connect(memoryCell, forgetGate, ConnectionPattern::AllToAll);
@@ -95,7 +98,7 @@ public:
       gate(inputGate, inputConn, GatingPattern::Input);
       gate(forgetGate, forgetConn, GatingPattern::Self);
       gate(outputGate, outputConn, GatingPattern::Output);
-      if(cell.size() > 0) {
+      if (cell.size() > 0) {
         gate(inputGate, cell, GatingPattern::Input);
       }
 
