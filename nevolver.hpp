@@ -72,7 +72,5 @@ using Group = std::vector<std::reference_wrapper<AnyNode>>;
 
 // Networks
 #include "network.hpp"
-#include "networks/narx.hpp"
-#include "networks/perceptron.hpp"
 
 #endif /* NEVOLVER_H */

@@ -40,6 +40,8 @@ public:
 
   bool is_output() const { return as_underlying().getIsOutput(); }
 
+  void clear() { as_underlying().doClear(); }
+
 protected:
   friend T;
 
@@ -62,6 +64,8 @@ public:
                    NeuroFloat target) {}
 
   bool getIsOutput() const { return false; }
+
+  void doClear() {}
 };
 } // namespace Nevolver
 

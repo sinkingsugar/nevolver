@@ -114,6 +114,18 @@ public:
       *conn.get().weight = 1.0;
     }
   }
+
+  Group addMemoryCell(int size) {
+    Group res;
+    for (int y = 0; y < size; y++) {
+      auto &node = _nodes.emplace_back(HiddenNode(false, true));
+      auto &hiddenNode = std::get<HiddenNode>(node);
+      hiddenNode.setBias(0.0);
+      hiddenNode.setSquash(IdentityS(), IdentityD());
+      res.emplace_back(node);
+    }
+    return res;
+  }
 };
 } // namespace Nevolver
 

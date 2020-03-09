@@ -182,6 +182,23 @@ public:
 
   void setBias(NeuroFloat bias) { _bias = bias; }
 
+  void doClear() {
+    for (auto &conn : _connections.inbound) {
+      conn->eligibility = 0.0;
+      conn->xtraces.nodes.clear();
+      conn->xtraces.values.clear();
+    }
+    for (auto &conn : _connections.gate) {
+      conn->gain = 0.0;
+    }
+    _responsibility = 0.0;
+    _projected = 0.0;
+    _gated = 0.0;
+    _old = 0.0;
+    _state = 0.0;
+    _activation = 0.0;
+  }
+
 private:
   std::function<NeuroFloat(NeuroFloat)> _squash{SigmoidS()};
   std::function<NeuroFloat(NeuroFloat, NeuroFloat)> _derive{SigmoidD()};

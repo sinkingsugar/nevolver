@@ -89,6 +89,12 @@ public:
     return mean;
   }
 
+  void clear() {
+    for (auto &node : _nodes) {
+      std::visit([](auto &&node) { node.clear(); }, node);
+    }
+  }
+
 protected:
   Connection &connect(AnyNode &from, AnyNode &to) {
     Node *fromPtr;
@@ -155,18 +161,6 @@ protected:
     } break;
     };
     return conns;
-  }
-
-  Group addMemoryCell(int size) {
-    Group res;
-    for (int y = 0; y < size; y++) {
-      auto &node = _nodes.emplace_back(HiddenNode(false, true));
-      auto &hiddenNode = std::get<HiddenNode>(node);
-      hiddenNode.setBias(0.0);
-      hiddenNode.setSquash(IdentityS(), IdentityD());
-      res.emplace_back(node);
-    }
-    return res;
   }
 
   void gate(AnyNode &gater, Connection &conn) {
