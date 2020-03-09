@@ -23,6 +23,17 @@ struct SigmoidD final {
     return fwd * (1 - fwd);
   }
 };
+
+struct Squash {
+  static inline std::array<std::function<NeuroFloat(NeuroFloat)>, 2> All{
+      IdentityS(), SigmoidS()};
+
+  static std::function<NeuroFloat(NeuroFloat)> &random() {
+    auto idx = size_t(Random::nextDouble() * (1.0 / double(All.size())));
+    assert(idx < All.size());
+    return All[idx];
+  }
+};
 } // namespace Nevolver
 
 #endif /* SQUASH_H */

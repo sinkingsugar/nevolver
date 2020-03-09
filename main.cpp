@@ -1,3 +1,4 @@
+#include "network.hpp"
 #include "networks/lstm.hpp"
 #include "networks/narx.hpp"
 #include "networks/perceptron.hpp"

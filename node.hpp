@@ -4,7 +4,7 @@
 #include "nevolver.hpp"
 
 namespace Nevolver {
-enum NodeMutations { Squash, Bias, AddSelfConnection, SubSelfConnection };
+enum NodeMutations { Squash, Bias };
 
 class Node {
 public:
@@ -44,9 +44,7 @@ public:
 
   void clear() { as_underlying().doClear(); }
 
-  void mutate(const std::vector<NodeMutations> &allowed) {
-    as_underlying().doMutate(allowed);
-  }
+  void mutate(NodeMutations mutation) { as_underlying().doMutate(mutation); }
 
 protected:
   friend T;
@@ -73,7 +71,9 @@ public:
 
   void doClear() {}
 
-  void doMutate(const std::vector<NodeMutations> &allowed) {}
+  void doMutate(NodeMutations mutation) {
+    // Input has none
+  }
 };
 } // namespace Nevolver
 

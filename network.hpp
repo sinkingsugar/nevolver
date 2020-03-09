@@ -108,27 +108,26 @@ public:
     }
   }
 
-  void mutate(const std::vector<NetworkMutations> &network_allowed,
-              double network_rate,
-              const std::vector<NodeMutations> &node_allowed, double node_rate,
-              const std::vector<ConnectionMutations> &connection_allowed,
-              double connection_rate) {
+  void mutate(const std::vector<NetworkMutations> &network_pool,
+              double network_rate, const std::vector<NodeMutations> &node_pool,
+              double node_rate, double connection_rate) {
     for (auto &node : _nodes) {
-      auto chance = Random::next();
-      if (chance < node_rate) {
-        std::visit([&node_allowed](auto &&node) { node.mutate(node_allowed); },
-                   node);
+      for (auto mutation : node_pool) {
+        auto chance = Random::next();
+        if (chance < node_rate) {
+          std::visit([mutation](auto &&node) { node.mutate(mutation); }, node);
+        }
       }
     }
 
     for (auto &conn : _connections) {
       auto chance = Random::next();
       if (chance < connection_rate) {
-        conn.mutate(connection_allowed);
+        conn.mutate();
       }
     }
 
-    for (auto mutation : network_allowed) {
+    for (auto mutation : network_pool) {
       auto chance = Random::next();
       if (chance < network_rate) {
         doMutation(mutation);

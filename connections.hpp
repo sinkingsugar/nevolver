@@ -6,7 +6,6 @@
 namespace Nevolver {
 enum ConnectionPattern { AllToAll, AllToElse, OneToOne };
 enum GatingPattern { Input, Output, Self };
-enum ConnectionMutations { Weight };
 
 struct ConnectionXTraces {
   std::vector<const Node *> nodes;
@@ -26,7 +25,10 @@ struct Connection final {
 
   ConnectionXTraces xtraces;
 
-  void mutate(const std::vector<ConnectionMutations> &allowed) {}
+  void mutate() {
+    assert(weight);
+    *weight += Random::normal(0.0, 0.1);
+  }
 };
 
 struct NodeConnections final {

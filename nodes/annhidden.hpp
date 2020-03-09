@@ -199,7 +199,16 @@ public:
     _activation = 0.0;
   }
 
-  void doMutate(const std::vector<NodeMutations> &allowed) {}
+  void doMutate(NodeMutations mutation) {
+    switch (mutation) {
+    case Squash: {
+      _squash = Squash::random();
+    } break;
+    case Bias: {
+      _bias += Random::normal(0.0, 0.1);
+    } break;
+    }
+  }
 
 private:
   std::function<NeuroFloat(NeuroFloat)> _squash{SigmoidS()};

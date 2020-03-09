@@ -32,6 +32,12 @@ public:
     return NeuroFloat(_gen()) * (1.0 / NeuroFloat(xorshift::max()));
   }
 
+  static double nextDouble() {
+    return double(_gen()) * (1.0 / double(xorshift::max()));
+  }
+
+  static uint32_t nextUInt() { return _gen(); }
+
   static NeuroFloat normal(NeuroFloat mean, NeuroFloat stdDeviation) {
     NeuroFloat u1 = 0.0;
     while (u1 == 0.0) {
@@ -69,8 +75,5 @@ using Group = std::vector<std::reference_wrapper<AnyNode>>;
 // Nodes
 #include "node.hpp"
 #include "nodes/annhidden.hpp"
-
-// Networks
-#include "network.hpp"
 
 #endif /* NEVOLVER_H */
