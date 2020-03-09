@@ -4,6 +4,8 @@
 #include "nevolver.hpp"
 
 namespace Nevolver {
+enum NodeMutations { Squash, Bias, AddSelfConnection, SubSelfConnection };
+
 class Node {
 public:
   NeuroFloat current() const { return _activation; }
@@ -42,6 +44,10 @@ public:
 
   void clear() { as_underlying().doClear(); }
 
+  void mutate(const std::vector<NodeMutations> &allowed) {
+    as_underlying().doMutate(allowed);
+  }
+
 protected:
   friend T;
 
@@ -66,6 +72,8 @@ public:
   bool getIsOutput() const { return false; }
 
   void doClear() {}
+
+  void doMutate(const std::vector<NodeMutations> &allowed) {}
 };
 } // namespace Nevolver
 

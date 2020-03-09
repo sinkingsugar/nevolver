@@ -78,5 +78,14 @@ int main() {
     std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
   }
 
+  {
+    for (auto i = 0; i < 1000; i++) {
+      auto r = Nevolver::Random::next();
+      if (r < 0.0 || r > 1.0) {
+        throw std::runtime_error("Random::next test failed...");
+      }
+    }
+  }
+
   return 0;
 }

@@ -199,6 +199,8 @@ public:
     _activation = 0.0;
   }
 
+  void doMutate(const std::vector<NodeMutations> &allowed) {}
+
 private:
   std::function<NeuroFloat(NeuroFloat)> _squash{SigmoidS()};
   std::function<NeuroFloat(NeuroFloat, NeuroFloat)> _derive{SigmoidD()};

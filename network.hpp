@@ -4,6 +4,19 @@
 #include "nevolver.hpp"
 
 namespace Nevolver {
+enum NetworkMutations {
+  AddNode,
+  SubNode,
+  AddConnection,
+  SubConnection,
+  ShareWeight,
+  SwapNodes,
+  AddGate,
+  SubGate,
+  AddBackConnection,
+  SubBackConnection
+};
+
 class Network {
 public:
   const std::vector<NeuroFloat> &
@@ -92,6 +105,34 @@ public:
   void clear() {
     for (auto &node : _nodes) {
       std::visit([](auto &&node) { node.clear(); }, node);
+    }
+  }
+
+  void mutate(const std::vector<NetworkMutations> &network_allowed,
+              double network_rate,
+              const std::vector<NodeMutations> &node_allowed, double node_rate,
+              const std::vector<ConnectionMutations> &connection_allowed,
+              double connection_rate) {
+    for (auto &node : _nodes) {
+      auto chance = Random::next();
+      if (chance < node_rate) {
+        std::visit([&node_allowed](auto &&node) { node.mutate(node_allowed); },
+                   node);
+      }
+    }
+
+    for (auto &conn : _connections) {
+      auto chance = Random::next();
+      if (chance < connection_rate) {
+        conn.mutate(connection_allowed);
+      }
+    }
+
+    for (auto mutation : network_allowed) {
+      auto chance = Random::next();
+      if (chance < network_rate) {
+        doMutation(mutation);
+      }
     }
   }
 
@@ -224,6 +265,8 @@ protected:
     } break;
     }
   }
+
+  void doMutation(NetworkMutations mutation) {}
 
   std::vector<std::reference_wrapper<InputNode>> _inputs;
   std::list<Connection> _connections;
