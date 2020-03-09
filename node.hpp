@@ -15,8 +15,8 @@ public:
   NeuroFloat responsibility() const { return _responsibility; }
 
 protected:
-  NeuroFloat _activation{0.0};
-  NeuroFloat _responsibility{0.0};
+  NeuroFloat _activation{NeuroFloatZeros};
+  NeuroFloat _responsibility{NeuroFloatZeros};
   NodeConnections _connections;
 };
 
