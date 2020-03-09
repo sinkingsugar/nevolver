@@ -17,9 +17,9 @@ struct Connection final {
   const Node *to;
   const Node *gater;
 
-  NeuroFloat gain{1.0};
-  NeuroFloat eligibility{0.0};
-  NeuroFloat previousDeltaWeight{0.0};
+  NeuroFloat gain{NeuroFloatOnes};
+  NeuroFloat eligibility{NeuroFloatZeros};
+  NeuroFloat previousDeltaWeight{NeuroFloatZeros};
 
   NeuroFloat *weight;
 

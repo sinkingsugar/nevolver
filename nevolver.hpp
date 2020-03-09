@@ -23,7 +23,7 @@
 #define M_PIl (3.14159265358979323846264338327950288)
 #endif
 
-#define NEVOLVER_WIDE8
+// #define NEVOLVER_WIDE8
 
 namespace Nevolver {
 #ifdef NEVOLVER_WIDE8

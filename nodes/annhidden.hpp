@@ -217,11 +217,11 @@ private:
   std::function<NeuroFloat(NeuroFloat)> _squash{SigmoidS()};
   std::function<NeuroFloat(NeuroFloat, NeuroFloat)> _derive{SigmoidD()};
   NeuroFloat _bias{Random::normal(0.0, 1.0)};
-  NeuroFloat _state{0.0};
-  NeuroFloat _old{0.0};
-  NeuroFloat _mask{1.0};
-  NeuroFloat _derivative{0.0};
-  NeuroFloat _previousDeltaBias{0.0};
+  NeuroFloat _state{NeuroFloatZeros};
+  NeuroFloat _old{NeuroFloatZeros};
+  NeuroFloat _mask{NeuroFloatOnes};
+  NeuroFloat _derivative{NeuroFloatZeros};
+  NeuroFloat _previousDeltaBias{NeuroFloatZeros};
   bool _is_output;
   bool _is_constant;
   std::vector<const Node *> _tmpNodes;
