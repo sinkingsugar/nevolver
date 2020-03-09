@@ -1,5 +1,3 @@
-
-
 #ifndef NEVOLVER_H
 #define NEVOLVER_H
 
@@ -27,6 +25,54 @@
 
 namespace Nevolver {
 using NeuroFloat = float;
-}
+
+class Random {
+public:
+  static NeuroFloat next() {
+    return NeuroFloat(_gen()) * (1.0 / NeuroFloat(xorshift::max()));
+  }
+
+  static NeuroFloat normal(NeuroFloat mean, NeuroFloat stdDeviation) {
+    NeuroFloat u1 = 0.0;
+    while (u1 == 0.0) {
+      u1 = next();
+    }
+
+    auto u2 = next();
+    auto rstdNorm = std::sqrt(-2.0 * std::log(u1)) * std::sin(2.0 * M_PI * u2);
+
+    return mean + stdDeviation * rstdNorm;
+  }
+
+private:
+#ifdef NDEBUG
+  static inline std::random_device _rd{};
+  static inline xorshift _gen{_rd};
+#else
+  static inline xorshift _gen{};
+#endif
+};
+
+class Node;
+class InputNode;
+class HiddenNode;
+class Weight;
+
+using AnyNode = std::variant<InputNode, HiddenNode>;
+using Group = std::vector<std::reference_wrapper<AnyNode>>;
+} // namespace Nevolver
+
+// Foundation
+#include "connections.hpp"
+#include "squash.hpp"
+
+// Nodes
+#include "node.hpp"
+#include "nodes/annhidden.hpp"
+
+// Networks
+#include "network.hpp"
+#include "networks/narx.hpp"
+#include "networks/perceptron.hpp"
 
 #endif /* NEVOLVER_H */

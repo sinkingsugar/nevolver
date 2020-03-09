@@ -12,6 +12,12 @@ set(
   ${CMAKE_CURRENT_LIST_DIR}/bench1.cpp
   ${CMAKE_CURRENT_LIST_DIR}/random.hpp
   ${CMAKE_CURRENT_LIST_DIR}/squash.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/connections.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/node.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/nodes/annhidden.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/network.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/networks/perceptron.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/networks/narx.hpp
   )
 
 #### Header paths for tidy
