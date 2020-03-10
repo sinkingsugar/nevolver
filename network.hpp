@@ -289,6 +289,9 @@ protected:
   std::vector<NeuroFloat> _weights;
 
 private:
+#ifdef NEVOLVER_WIDE
+  std::vector<NeuroFloat> _wideInputs;
+#endif
   std::vector<NeuroFloat> _outputCache;
 };
 } // namespace Nevolver

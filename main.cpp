@@ -8,9 +8,11 @@ namespace Nevolver {} // namespace Nevolver
 int main() {
   std::cout << "Hello!\n";
 
+  Nevolver::SigmoidS func;
+  std::cout << func(Nevolver::NeuroFloatOnes) << "\n";
+
   Nevolver::HiddenNode node;
-  Nevolver::print(node.activate());
-  std::cout << "\n";
+  std::cout << node.activate() << "\n";
 
 #ifndef NEVOLVER_WIDE
   {
@@ -88,6 +90,37 @@ int main() {
         throw std::runtime_error("Random::next test failed...");
       }
     }
+  }
+#else
+  {
+    auto perceptron = Nevolver::Perceptron(2, {4, 4}, 1);
+    for (auto i = 0; i < 50000; i++) {
+      perceptron.activate(
+          {Nevolver::NeuroFloatZeros, Nevolver::NeuroFloatZeros});
+      perceptron.propagate({Nevolver::NeuroFloatOnes});
+      perceptron.activate(
+          {Nevolver::NeuroFloatZeros, Nevolver::NeuroFloatOnes});
+      perceptron.propagate({Nevolver::NeuroFloatZeros});
+      perceptron.activate(
+          {Nevolver::NeuroFloatOnes, Nevolver::NeuroFloatZeros});
+      perceptron.propagate({Nevolver::NeuroFloatZeros});
+      perceptron.activate({Nevolver::NeuroFloatOnes, Nevolver::NeuroFloatOnes});
+      auto err = perceptron.propagate({Nevolver::NeuroFloatOnes});
+      if (!(i % 10000))
+        std::cout << "MSE: " << err << "\n";
+    }
+    std::cout << perceptron.activate(
+                     {Nevolver::NeuroFloatZeros, Nevolver::NeuroFloatZeros})[0]
+              << " (1.0)\n";
+    std::cout << perceptron.activate(
+                     {Nevolver::NeuroFloatZeros, Nevolver::NeuroFloatOnes})[0]
+              << " (0.0)\n";
+    std::cout << perceptron.activate(
+                     {Nevolver::NeuroFloatOnes, Nevolver::NeuroFloatZeros})[0]
+              << " (0.0)\n";
+    std::cout << perceptron.activate(
+                     {Nevolver::NeuroFloatOnes, Nevolver::NeuroFloatOnes})[0]
+              << " (1.0)\n";
   }
 #endif
 

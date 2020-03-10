@@ -8,6 +8,7 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <set>
 #include <variant>
 #include <vector>
@@ -23,15 +24,14 @@
 #define M_PIl (3.14159265358979323846264338327950288)
 #endif
 
-#define NEVOLVER_WIDE8
+#define NEVOLVER_WIDE4
 
 namespace Nevolver {
 #ifdef NEVOLVER_WIDE8
 
 #define NEVOLVER_WIDE
 
-typedef float Float8 __attribute__((vector_size(32)));
-using NeuroFloat = Float8;
+typedef float NeuroFloat __attribute__((vector_size(32)));
 constexpr int NeuroFloatWidth = 8;
 
 #define NEUROWIDE(_v_, _x_)                                                    \
@@ -39,29 +39,32 @@ constexpr int NeuroFloatWidth = 8;
     float(_x_), float(_x_), float(_x_), float(_x_), float(_x_), float(_x_),    \
         float(_x_), float(_x_),                                                \
   }
-constexpr Float8 NeuroFloatZeros =
-    Float8{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-constexpr Float8 NeuroFloatOnes =
-    Float8{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+constexpr NeuroFloat NeuroFloatZeros =
+    NeuroFloat{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+constexpr NeuroFloat NeuroFloatOnes =
+    NeuroFloat{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
-inline void print(NeuroFloat f) {
-  std::cout << "[";
-  for (int i = 0; i < Nevolver::NeuroFloatWidth; i++) {
-    std::cout << f[i] << " ";
-  }
-  std::cout << "]";
-}
+#elif defined(NEVOLVER_WIDE4)
+
+#define NEVOLVER_WIDE
+
+typedef float NeuroFloat __attribute__((vector_size(16)));
+constexpr int NeuroFloatWidth = 4;
+
+#define NEUROWIDE(_v_, _x_)                                                    \
+  NeuroFloat _v_ { float(_x_), float(_x_), float(_x_), float(_x_) }
+
+constexpr NeuroFloat NeuroFloatZeros = NeuroFloat{0.0, 0.0, 0.0, 0.0};
+constexpr NeuroFloat NeuroFloatOnes = NeuroFloat{1.0, 1.0, 1.0, 1.0};
 
 #else
 
 using NeuroFloat = float;
 
-constexpr NeuroFloat NeuroFloatZeros = 0.0;
-constexpr NeuroFloat NeuroFloatOnes = 1.0;
 #define NEUROWIDE(_v_, _x_)                                                    \
   NeuroFloat _v_ { float(_x_) }
-
-inline void print(NeuroFloat f) { std::cout << f; }
+constexpr NeuroFloat NeuroFloatZeros = 0.0;
+constexpr NeuroFloat NeuroFloatOnes = 1.0;
 
 #endif
 
@@ -126,6 +129,21 @@ class Weight;
 using AnyNode = std::variant<InputNode, HiddenNode>;
 using Group = std::vector<std::reference_wrapper<AnyNode>>;
 } // namespace Nevolver
+
+inline std::ostream &operator<<(std::ostream &os,
+                                const Nevolver::NeuroFloat &f) {
+#ifdef NEVOLVER_WIDE
+  os << "[";
+  for (int i = 0; i < Nevolver::NeuroFloatWidth; i++) {
+    os << f[i] << " ";
+  }
+  os << "]";
+  return os;
+#else
+  os << f;
+  return os;
+#endif
+}
 
 // Foundation
 #include "connections.hpp"

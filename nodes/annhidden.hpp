@@ -177,8 +177,7 @@ public:
     _previousDeltaBias = deltaBias;
   }
 
-  void setSquash(std::function<NeuroFloat(NeuroFloat)> squash,
-                 std::function<NeuroFloat(NeuroFloat, NeuroFloat)> derive) {
+  void setSquash(SquashFunc squash, DeriveFunc derive) {
     _squash = squash;
     _derive = derive;
   }
@@ -214,8 +213,8 @@ public:
   }
 
 private:
-  std::function<NeuroFloat(NeuroFloat)> _squash{SigmoidS()};
-  std::function<NeuroFloat(NeuroFloat, NeuroFloat)> _derive{SigmoidD()};
+  SquashFunc _squash{SigmoidS()};
+  DeriveFunc _derive{SigmoidD()};
   NeuroFloat _bias{Random::normal(0.0, 1.0)};
   NeuroFloat _state{NeuroFloatZeros};
   NeuroFloat _old{NeuroFloatZeros};
