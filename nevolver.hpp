@@ -24,7 +24,7 @@
 #define M_PIl (3.14159265358979323846264338327950288)
 #endif
 
-#define NEVOLVER_WIDE4
+// #define NEVOLVER_WIDE4
 
 namespace Nevolver {
 #ifdef NEVOLVER_WIDE8
@@ -130,20 +130,17 @@ using AnyNode = std::variant<InputNode, HiddenNode>;
 using Group = std::vector<std::reference_wrapper<AnyNode>>;
 } // namespace Nevolver
 
+#ifdef NEVOLVER_WIDE
 inline std::ostream &operator<<(std::ostream &os,
                                 const Nevolver::NeuroFloat &f) {
-#ifdef NEVOLVER_WIDE
   os << "[";
   for (int i = 0; i < Nevolver::NeuroFloatWidth; i++) {
     os << f[i] << " ";
   }
   os << "]";
   return os;
-#else
-  os << f;
-  return os;
-#endif
 }
+#endif
 
 // Foundation
 #include "connections.hpp"
