@@ -24,14 +24,10 @@
 #define M_PIl (3.14159265358979323846264338327950288)
 #endif
 
-// #define NEVOLVER_WIDE8
+#define NEVOLVER_WIDE4
 
 namespace Nevolver {
 #ifdef NEVOLVER_WIDE8
-
-#include <boost/align/aligned_allocator.hpp>
-
-template <class T> using Allocator = boost::alignment::aligned_allocator<T, 32>;
 
 #define NEVOLVER_WIDE
 
@@ -50,10 +46,6 @@ constexpr NeuroFloat NeuroFloatOnes =
 
 #elif defined(NEVOLVER_WIDE4)
 
-#include <boost/align/aligned_allocator.hpp>
-
-template <class T> using Allocator = boost::alignment::aligned_allocator<T, 16>;
-
 #define NEVOLVER_WIDE
 
 typedef float NeuroFloat __attribute__((vector_size(16)));
@@ -66,8 +58,6 @@ constexpr NeuroFloat NeuroFloatZeros = NeuroFloat{0.0, 0.0, 0.0, 0.0};
 constexpr NeuroFloat NeuroFloatOnes = NeuroFloat{1.0, 1.0, 1.0, 1.0};
 
 #else
-
-template <class T> using Allocator = std::allocator<T>;
 
 using NeuroFloat = float;
 
@@ -140,17 +130,20 @@ using AnyNode = std::variant<InputNode, HiddenNode>;
 using Group = std::vector<std::reference_wrapper<AnyNode>>;
 } // namespace Nevolver
 
-#ifdef NEVOLVER_WIDE
 inline std::ostream &operator<<(std::ostream &os,
                                 const Nevolver::NeuroFloat &f) {
+#ifdef NEVOLVER_WIDE
   os << "[";
   for (int i = 0; i < Nevolver::NeuroFloatWidth; i++) {
     os << f[i] << " ";
   }
   os << "]";
   return os;
-}
+#else
+  os << f;
+  return os;
 #endif
+}
 
 // Foundation
 #include "connections.hpp"

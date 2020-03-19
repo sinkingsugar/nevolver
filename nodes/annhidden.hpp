@@ -224,7 +224,7 @@ private:
   bool _is_output;
   bool _is_constant;
   std::vector<const Node *> _tmpNodes;
-  std::vector<NeuroFloat, Allocator<NeuroFloat>> _tmpInfluence;
+  std::vector<NeuroFloat> _tmpInfluence;
   NeuroFloat _projected{NeuroFloatZeros};
   NeuroFloat _gated{NeuroFloatZeros};
 };
