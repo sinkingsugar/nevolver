@@ -19,8 +19,8 @@ enum NetworkMutations {
 
 class Network {
 public:
-  virtual const std::vector<NeuroFloat> &
-  activate(const std::vector<NeuroFloat> &input) {
+  virtual const std::vector<NeuroFloat, Allocator<NeuroFloat>> &
+  activate(const std::vector<NeuroFloat, Allocator<NeuroFloat>> &input) {
     _outputCache.clear();
 
     auto isize = input.size();
@@ -47,8 +47,8 @@ public:
     return _outputCache;
   }
 
-  virtual const std::vector<NeuroFloat> &
-  activateFast(const std::vector<NeuroFloat> &input) {
+  virtual const std::vector<NeuroFloat, Allocator<NeuroFloat>> &
+  activateFast(const std::vector<NeuroFloat, Allocator<NeuroFloat>> &input) {
     _outputCache.clear();
 
     auto isize = input.size();
@@ -75,9 +75,9 @@ public:
     return _outputCache;
   }
 
-  virtual NeuroFloat propagate(const std::vector<NeuroFloat> &targets,
-                               double rate = 0.3, double momentum = 0.0,
-                               bool update = true) {
+  virtual NeuroFloat
+  propagate(const std::vector<NeuroFloat, Allocator<NeuroFloat>> &targets,
+            double rate = 0.3, double momentum = 0.0, bool update = true) {
     size_t outputIdx = targets.size();
     _outputCache.resize(outputIdx); // reuse for MSE
     for (auto it = _nodes.rbegin(); it != _nodes.rend(); ++it) {
@@ -284,15 +284,15 @@ protected:
   void doMutation(NetworkMutations mutation) {}
 
   std::vector<std::reference_wrapper<InputNode>> _inputs;
-  std::list<Connection> _connections;
-  std::vector<AnyNode> _nodes;
-  std::vector<NeuroFloat> _weights;
+  std::list<Connection, Allocator<Connection>> _connections;
+  std::vector<AnyNode, Allocator<AnyNode>> _nodes;
+  std::vector<NeuroFloat, Allocator<NeuroFloat>> _weights;
 
 private:
 #ifdef NEVOLVER_WIDE
-  std::vector<NeuroFloat> _wideInputs;
+  std::vector<NeuroFloat, Allocator<NeuroFloat>> _wideInputs;
 #endif
-  std::vector<NeuroFloat> _outputCache;
+  std::vector<NeuroFloat, Allocator<NeuroFloat>> _outputCache;
 };
 } // namespace Nevolver
 

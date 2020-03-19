@@ -9,7 +9,7 @@ enum GatingPattern { Input, Output, Self };
 
 struct ConnectionXTraces {
   std::vector<const Node *> nodes;
-  std::vector<NeuroFloat> values;
+  std::vector<NeuroFloat, Allocator<NeuroFloat>> values;
 };
 
 struct Connection final {
