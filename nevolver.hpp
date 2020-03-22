@@ -114,10 +114,10 @@ public:
 
 private:
 #ifdef NDEBUG
-  static inline std::random_device _rd{};
-  static inline xorshift _gen{_rd};
+  static inline thread_local std::random_device _rd{};
+  static inline thread_local xorshift _gen{_rd};
 #else
-  static inline xorshift _gen{};
+  static inline thread_local xorshift _gen{};
 #endif
 };
 
