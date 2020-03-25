@@ -4,10 +4,6 @@
 #include "nevolver.hpp"
 
 namespace Nevolver {
-using SquashFunc = std::function<NeuroFloat(const NeuroFloat &)>;
-using DeriveFunc =
-    std::function<NeuroFloat(const NeuroFloat &, const NeuroFloat &)>;
-
 struct IdentityS final {
   NeuroFloat operator()(const NeuroFloat &input) const { return input; }
 };
@@ -37,6 +33,9 @@ struct SigmoidD final {
     return fwd * (1.0 - fwd);
   }
 };
+
+using SquashFunc = std::variant<IdentityS, SigmoidS>;
+using DeriveFunc = std::variant<IdentityD, SigmoidD>;
 
 struct Squash final {
   static inline std::array<SquashFunc, 2> funcs{IdentityS(), SigmoidS()};

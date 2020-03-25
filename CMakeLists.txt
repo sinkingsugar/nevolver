@@ -25,6 +25,7 @@ set(
 set(
   MY_PROJECT_HEADER_PATHS
   ${MY_PROJECT_HEADER_PATHS}
+  -I${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   )
 
 ### setup clang format
@@ -84,6 +85,7 @@ if(APPLE)
 endif()
 
 include_directories(
+  ${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   )
 
 add_executable(

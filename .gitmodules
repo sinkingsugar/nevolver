@@ -1,0 +1,3 @@
+[submodule "ceral"]
+	path = deps/cereal
+	url = git@github.com:chainblocks/cereal.git

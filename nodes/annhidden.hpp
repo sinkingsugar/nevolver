@@ -26,9 +26,9 @@ public:
           connection->from->current() * *connection->weight * connection->gain;
     }
 
-    auto fwd = _squash(_state);
+    auto fwd = std::visit([&](auto &&f) { return f(_state); }, _squash);
     _activation = fwd * _mask;
-    _derivative = _derive(_state, fwd);
+    _derivative = std::visit([&](auto &&f) { return f(_state, fwd); }, _derive);
 
     _tmpNodes.clear();
     _tmpInfluence.clear();
@@ -105,7 +105,7 @@ public:
           connection->from->current() * *connection->weight * connection->gain;
     }
 
-    auto fwd = _squash(_state);
+    auto fwd = std::visit([&](auto &&f) { return f(_state); }, _squash);
     _activation = fwd * _mask;
 
     for (auto connection : _connections.gate) {
@@ -212,6 +212,11 @@ public:
     }
   }
 
+  template <class Archive>
+  void serialize(Archive &ar, std::uint32_t const version) {
+    ar(_squash, _derive, _bias, _is_output, _is_constant);
+  }
+
 private:
   SquashFunc _squash{SigmoidS()};
   DeriveFunc _derive{SigmoidD()};
@@ -229,5 +234,7 @@ private:
   NeuroFloat _gated{NeuroFloatZeros};
 };
 } // namespace Nevolver
+
+CEREAL_CLASS_VERSION(Nevolver::HiddenNode, NEVOLVER_VERSION);
 
 #endif /* ANNHIDDEN_H */

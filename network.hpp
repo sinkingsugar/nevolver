@@ -2,6 +2,7 @@
 #define NETWORK_H
 
 #include "nevolver.hpp"
+#include <unordered_map>
 
 namespace Nevolver {
 enum NetworkMutations {
@@ -152,47 +153,68 @@ public:
     return offspring;
   }
 
-  template <class BinaryReader> static Network deserialize(BinaryReader &read) {
-    Network n{};
-
-    int32_t version;
-    read((uint8_t *)&version, sizeof(version));
-    if (version != NEVOLVER_VERSION) {
-      throw std::runtime_error("Serialized network version mismatch.");
+  template <class Archive>
+  void save(Archive &ar, std::uint32_t const version) const {
+    std::unordered_map<const Node *, uint64_t> nodeMap;
+    uint64_t idx = 0;
+    for (auto &node : _nodes) {
+      nodeMap.emplace(
+          std::visit([](auto &&node) { return (Node *)&node; }, node), idx);
+      idx++;
     }
 
-    int32_t width;
-    read((uint8_t *)&width, sizeof(width));
-    if (width != NeuroFloatWidth) {
-      throw std::runtime_error("Serialized NeuroFloat width mismatch.");
+    std::unordered_map<const NeuroFloat *, uint64_t> wMap;
+    idx = 0;
+    for (auto &w : _weights) {
+      wMap.emplace(&w, idx);
+      idx++;
     }
 
-    uint64_t len;
-    read((uint8_t *)&len, sizeof(len));
-    n._nodes.resize(len);
-    read((uint8_t *)&n._nodes[0], sizeof(AnyNode) * n._nodes.size());
+    std::vector<ConnectionInfo> conns;
+    for (auto &conn : _connections) {
+      conns.push_back({nodeMap[conn.from], nodeMap[conn.to],
+                       conn.gater != nullptr, nodeMap[conn.gater],
+                       wMap[conn.weight]});
+    }
 
-    read((uint8_t *)&len, sizeof(len));
-    n._weights.resize(len);
-    read((uint8_t *)&n._weights[0], sizeof(NeuroFloat) * n._weights.size());
+    std::vector<uint64_t> inputs;
+    for (auto &inp : _inputs) {
+      inputs.emplace_back(nodeMap[&inp.get()]);
+    }
 
-    return n;
+    ar(_nodes, _weights, conns, inputs);
   }
 
-  template <class BinaryWriter> void serialize(BinaryWriter &write) {
-    int32_t version = NEVOLVER_VERSION;
-    write((uint8_t *)&version, sizeof(version));
-    int32_t width = NeuroFloatWidth;
-    write((uint8_t *)&width, sizeof(width));
+  template <class Archive> void load(Archive &ar, std::uint32_t const version) {
+    std::vector<ConnectionInfo> conns;
+    std::vector<uint64_t> inputs;
 
-    uint64_t len = _nodes.size();
-    write((uint8_t *)&len, sizeof(len));
-    write((uint8_t *)&_nodes[0], sizeof(AnyNode) * _nodes.size());
+    ar(_nodes, _weights, conns, inputs);
 
-    len = _weights.size();
-    write((uint8_t *)&len, sizeof(len));
-    write((uint8_t *)&_weights[0], sizeof(NeuroFloat) * _weights.size());
+    for (auto &conn : conns) {
+      auto &c = connect(_nodes[conn.fromIdx], _nodes[conn.toIdx]);
+      if (conn.hasGater)
+        gate(_nodes[conn.gaterIdx], c);
+      c.weight = &_weights[conn.weightIdx];
+    }
+
+    for (auto idx : inputs) {
+      _inputs.emplace_back(std::get<InputNode>(_nodes[idx]));
+    }
   }
+
+  struct ConnectionInfo {
+    uint64_t fromIdx;
+    uint64_t toIdx;
+    bool hasGater;
+    uint64_t gaterIdx;
+    uint64_t weightIdx;
+
+    template <class Archive>
+    void serialize(Archive &ar, std::uint32_t const version) {
+      ar(fromIdx, toIdx, gaterIdx, weightIdx);
+    }
+  };
 
 protected:
   Connection &connect(AnyNode &from, AnyNode &to) {
@@ -338,5 +360,8 @@ private:
   std::vector<NeuroFloat> _outputCache;
 };
 } // namespace Nevolver
+
+CEREAL_CLASS_VERSION(Nevolver::Network, NEVOLVER_VERSION);
+CEREAL_CLASS_VERSION(Nevolver::Network::ConnectionInfo, NEVOLVER_VERSION);
 
 #endif /* NETWORK_H */

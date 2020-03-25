@@ -74,7 +74,12 @@ public:
   void doMutate(NodeMutations mutation) {
     // Input has none
   }
+
+  template <class Archive>
+  void serialize(Archive &ar, std::uint32_t const version) {}
 };
 } // namespace Nevolver
+
+CEREAL_CLASS_VERSION(Nevolver::InputNode, NEVOLVER_VERSION);
 
 #endif /* NODE_H */

@@ -16,6 +16,13 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
+#include <cereal/archives/binary.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/functional.hpp>
+#include <cereal/types/list.hpp>
+#include <cereal/types/variant.hpp>
+#include <cereal/types/vector.hpp>
+
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
 #endif
