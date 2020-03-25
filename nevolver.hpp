@@ -24,6 +24,8 @@
 #define M_PIl (3.14159265358979323846264338327950288)
 #endif
 
+#define NEVOLVER_VERSION 0x1
+
 // #define NEVOLVER_WIDE4
 
 namespace Nevolver {
@@ -60,6 +62,7 @@ constexpr NeuroFloat NeuroFloatOnes = NeuroFloat{1.0, 1.0, 1.0, 1.0};
 #else
 
 using NeuroFloat = float;
+constexpr int NeuroFloatWidth = 1;
 
 #define NEUROWIDE(_v_, _x_)                                                    \
   NeuroFloat _v_ { float(_x_) }

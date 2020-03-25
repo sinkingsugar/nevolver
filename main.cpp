@@ -2,6 +2,7 @@
 #include "networks/lstm.hpp"
 #include "networks/narx.hpp"
 #include "networks/perceptron.hpp"
+#include <sstream>
 
 namespace Nevolver {} // namespace Nevolver
 
@@ -81,6 +82,22 @@ int main() {
     std::cout << lstm.activate({1.0})[0] << " (0.0)\n";
     std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
     std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
+
+    struct Writer {
+      std::stringstream s;
+      void operator()(uint8_t *data, size_t size) {
+        s.write((const char *)data, size);
+      }
+    } w;
+    lstm.serialize(w);
+
+    struct Reader {
+      Writer &w;
+      void operator()(uint8_t *data, size_t size) {
+        w.s.read((char *)data, size);
+      }
+    } r{w};
+    auto lstm2 = Nevolver::Network::deserialize(r);
   }
 
   {

@@ -148,7 +148,50 @@ public:
   virtual Network crossover(const Network &other) {
     Network offspring = *this;
     // FIXME not so easy, must fixup all references also!
+    // We basically need to redo connections and populate inputs
     return offspring;
+  }
+
+  template <class BinaryReader> static Network deserialize(BinaryReader &read) {
+    Network n{};
+
+    int32_t version;
+    read((uint8_t *)&version, sizeof(version));
+    if (version != NEVOLVER_VERSION) {
+      throw std::runtime_error("Serialized network version mismatch.");
+    }
+
+    int32_t width;
+    read((uint8_t *)&width, sizeof(width));
+    if (width != NeuroFloatWidth) {
+      throw std::runtime_error("Serialized NeuroFloat width mismatch.");
+    }
+
+    uint64_t len;
+    read((uint8_t *)&len, sizeof(len));
+    n._nodes.resize(len);
+    read((uint8_t *)&n._nodes[0], sizeof(AnyNode) * n._nodes.size());
+
+    read((uint8_t *)&len, sizeof(len));
+    n._weights.resize(len);
+    read((uint8_t *)&n._weights[0], sizeof(NeuroFloat) * n._weights.size());
+
+    return n;
+  }
+
+  template <class BinaryWriter> void serialize(BinaryWriter &write) {
+    int32_t version = NEVOLVER_VERSION;
+    write((uint8_t *)&version, sizeof(version));
+    int32_t width = NeuroFloatWidth;
+    write((uint8_t *)&width, sizeof(width));
+
+    uint64_t len = _nodes.size();
+    write((uint8_t *)&len, sizeof(len));
+    write((uint8_t *)&_nodes[0], sizeof(AnyNode) * _nodes.size());
+
+    len = _weights.size();
+    write((uint8_t *)&len, sizeof(len));
+    write((uint8_t *)&_weights[0], sizeof(NeuroFloat) * _weights.size());
   }
 
 protected:
