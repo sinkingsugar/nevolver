@@ -214,7 +214,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar, std::uint32_t const version) {
-    ar(_squash, _derive, _bias, _is_output, _is_constant);
+    ar(_squash, _derive, _bias, _mask, _is_output, _is_constant);
   }
 
 private:

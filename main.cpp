@@ -36,23 +36,23 @@ int main() {
     std::cout << perceptron.activate({1.0, 0.0})[0] << " (0.0)\n";
     std::cout << perceptron.activate({1.0, 1.0})[0] << " (1.0)\n";
 
-    {
-      std::ofstream os("nn.cereal", std::ios::binary);
-      cereal::BinaryOutputArchive oa(os);
-      oa(perceptron);
-    }
+    // {
+    //   std::ofstream os("nn.cereal", std::ios::binary);
+    //   cereal::BinaryOutputArchive oa(os);
+    //   oa(perceptron);
+    // }
 
-    {
-      std::ifstream is("nn.cereal", std::ios::binary);
-      cereal::BinaryInputArchive ia(is);
-      Nevolver::Network perceptron2;
-      ia(perceptron2);
+    // {
+    //   std::ifstream is("nn.cereal", std::ios::binary);
+    //   cereal::BinaryInputArchive ia(is);
+    //   Nevolver::Network perceptron2;
+    //   ia(perceptron2);
 
-      std::cout << perceptron2.activate({0.0, 0.0})[0] << " (1.0)\n";
-      std::cout << perceptron2.activate({0.0, 1.0})[0] << " (0.0)\n";
-      std::cout << perceptron2.activate({1.0, 0.0})[0] << " (0.0)\n";
-      std::cout << perceptron2.activate({1.0, 1.0})[0] << " (1.0)\n";
-    }
+    //   std::cout << perceptron2.activate({0.0, 0.0})[0] << " (1.0)\n";
+    //   std::cout << perceptron2.activate({0.0, 1.0})[0] << " (0.0)\n";
+    //   std::cout << perceptron2.activate({1.0, 0.0})[0] << " (0.0)\n";
+    //   std::cout << perceptron2.activate({1.0, 1.0})[0] << " (1.0)\n";
+    // }
   }
 
   {
@@ -101,6 +101,26 @@ int main() {
     std::cout << lstm.activate({1.0})[0] << " (0.0)\n";
     std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
     std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
+
+    {
+      std::ofstream os("nn.cereal", std::ios::binary);
+      cereal::BinaryOutputArchive oa(os);
+      oa(lstm);
+    }
+
+    {
+      std::ifstream is("nn.cereal", std::ios::binary);
+      cereal::BinaryInputArchive ia(is);
+      Nevolver::Network lstm2;
+      ia(lstm2);
+
+      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+      std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
+      std::cout << lstm2.activate({1.0})[0] << " (0.0)\n";
+      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+      std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
+    }
   }
 
   {

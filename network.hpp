@@ -212,22 +212,24 @@ public:
 
     template <class Archive>
     void serialize(Archive &ar, std::uint32_t const version) {
-      ar(fromIdx, toIdx, gaterIdx, weightIdx);
+      ar(fromIdx, toIdx, hasGater, gaterIdx, weightIdx);
     }
   };
 
 protected:
   Connection &connect(AnyNode &from, AnyNode &to) {
-    Node *fromPtr;
-    std::visit([&fromPtr](auto &&node) { fromPtr = &node; }, from);
-    Node *toPtr;
-    std::visit([&toPtr](auto &&node) { toPtr = &node; }, to);
+    auto fptr = std::visit([](auto &&node) { return (Node *)&node; }, from);
+    auto tptr = std::visit([](auto &&node) { return (Node *)&node; }, to);
 
-    auto &conn = _connections.emplace_back(Connection{fromPtr, toPtr, nullptr});
+    auto &conn = _connections.emplace_back(Connection{fptr, tptr, nullptr});
 
-    std::visit([&conn](auto &&node) { node.addOutboundConnection(conn); },
-               from);
-    std::visit([&conn](auto &&node) { node.addInboundConnection(conn); }, to);
+    if (fptr == tptr) {
+      std::visit([&conn](auto &&node) { node.addSelfConnection(conn); }, to);
+    } else {
+      std::visit([&conn](auto &&node) { node.addOutboundConnection(conn); },
+                 from);
+      std::visit([&conn](auto &&node) { node.addInboundConnection(conn); }, to);
+    }
 
     return conn;
   }
@@ -285,8 +287,8 @@ protected:
   }
 
   void gate(AnyNode &gater, Connection &conn) {
-    Node *gaterPtr;
-    std::visit([&gaterPtr](auto &&node) { gaterPtr = &node; }, gater);
+    auto gaterPtr =
+        std::visit([](auto &&node) { return (Node *)&node; }, gater);
     conn.gater = gaterPtr;
     std::visit([&conn](auto &&node) { node.addGate(conn); }, gater);
   }

@@ -38,6 +38,13 @@ public:
     _connections.outbound.push_back(&conn);
   }
 
+  void addSelfConnection(Connection &conn) {
+    if (_connections.self) {
+      throw std::runtime_error("Node already has a self connection.");
+    }
+    _connections.self = &conn;
+  }
+
   void addGate(Connection &conn) { _connections.gate.push_back(&conn); }
 
   bool is_output() const { return as_underlying().getIsOutput(); }
