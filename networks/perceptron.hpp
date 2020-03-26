@@ -7,15 +7,10 @@ namespace Nevolver {
 class Perceptron final : public Network {
 public:
   Perceptron(int inputs, std::vector<int> hidden, int outputs) {
-    auto total_size = inputs + outputs;
-    for (auto lsize : hidden) {
-      total_size += lsize;
-    }
-    _nodes.reserve(total_size);
-
     Group inputNodes;
     for (int i = 0; i < inputs; i++) {
-      auto &node = _nodes.emplace_back(InputNode());
+      auto &node = _nodes.emplace_front(InputNode());
+      _sortedNodes.emplace_back(node); // insertion order!
       _inputs.emplace_back(std::get<InputNode>(node));
       inputNodes.emplace_back(node);
     }
@@ -28,7 +23,8 @@ public:
     for (auto lsize : hidden) {
       auto &layer = layers.emplace_back();
       for (int i = 0; i < lsize; i++) {
-        auto &node = _nodes.emplace_back(HiddenNode());
+        auto &node = _nodes.emplace_front(HiddenNode());
+        _sortedNodes.emplace_back(node); // insertion order!
         layer.emplace_back(node);
       }
 
@@ -38,7 +34,8 @@ public:
 
     Group outputNodes;
     for (int i = 0; i < outputs; i++) {
-      auto &node = _nodes.emplace_back(HiddenNode(true));
+      auto &node = _nodes.emplace_front(HiddenNode(true));
+      _sortedNodes.emplace_back(node); // insertion order!
       outputNodes.emplace_back(node);
     }
 

@@ -8,57 +8,45 @@ class NARX final : public Network {
 public:
   NARX(int inputs, std::vector<int> hidden, int outputs, int input_memory,
        int output_memory) {
-    // Need to pre allocate
-    // to avoid vector reallocations, we need valid ptr/refs
-    auto total_size =
-        inputs + (inputs * input_memory) + outputs + (outputs * output_memory);
-    for (auto lsize : hidden) {
-      total_size += lsize;
-    }
-    _nodes.reserve(total_size);
-
-    // insertion order = activation order = MATTERS
-
-    // keep track of pure ringbuffer memory conns we need to fix in terms of
-    // weights
+    // keep track of pure ringbuffer memory conns to fix weights
     std::vector<std::reference_wrapper<Connection>> memoryTunnels;
 
     Group inputNodes;
     for (int i = 0; i < inputs; i++) {
-      auto &node = _nodes.emplace_back(InputNode());
+      auto &node = _nodes.emplace_front(InputNode());
       _inputs.emplace_back(std::get<InputNode>(node));
       inputNodes.emplace_back(node);
     }
 
-    // TODO really make creating stuff easier :)
-    // but for now... we need to reverse those nodes activations
-    // so we store their position in the array
     std::vector<Group> outputMemory;
     outputMemory.resize(output_memory);
-    for (int i = output_memory; i > 0; i--) {
-      auto memStart = _nodes.end();
-      outputMemory[i - 1] = addMemoryCell(outputs);
-      auto memEnd = _nodes.end();
-      std::reverse(memStart, memEnd);
+    for (int i = 0; i < output_memory; i++) {
+      outputMemory[i] = addMemoryCell(outputs);
+      if (i > 0) {
+        auto conns = connect(outputMemory[i - 1], outputMemory[i],
+                             ConnectionPattern::OneToOne);
+        memoryTunnels.insert(memoryTunnels.end(), conns.begin(), conns.end());
+      }
+    }
+    std::reverse(outputMemory.begin(), outputMemory.end());
+    for (auto &group : outputMemory) {
+      std::reverse(group.begin(), group.end());
+    }
+    for (auto &group : outputMemory) {
+      for (auto &node : group) {
+        _sortedNodes.emplace_back(node);
+      }
     }
 
-    Group *previous = &outputMemory[0];
-    for (int i = 1; i < output_memory; i++) {
-      auto conns =
-          connect(*previous, outputMemory[i], ConnectionPattern::OneToOne);
-      memoryTunnels.insert(memoryTunnels.end(), conns.begin(), conns.end());
-      previous = &outputMemory[i];
-    }
-
-    previous = &inputNodes;
-
+    Group *previous = &inputNodes;
     std::vector<Group> layers;
     // must pre alloc as we take ref!
     layers.reserve(hidden.size());
     for (auto lsize : hidden) {
       auto &layer = layers.emplace_back();
       for (int i = 0; i < lsize; i++) {
-        auto &node = _nodes.emplace_back(HiddenNode());
+        auto &node = _nodes.emplace_front(HiddenNode());
+        _sortedNodes.emplace_back(node);
         layer.emplace_back(node);
       }
 
@@ -68,36 +56,47 @@ public:
 
     std::vector<Group> inputMemory;
     inputMemory.resize(input_memory);
-    for (int i = input_memory; i > 0; i--) {
-      auto memStart = _nodes.end();
-      inputMemory[i - 1] = addMemoryCell(inputs);
-      auto memEnd = _nodes.end();
-      std::reverse(memStart, memEnd);
+    for (int i = 0; i < input_memory; i++) {
+      inputMemory[i] = addMemoryCell(inputs);
+      if (i > 0) {
+        auto conns = connect(inputMemory[i - 1], inputMemory[i],
+                             ConnectionPattern::OneToOne);
+        memoryTunnels.insert(memoryTunnels.end(), conns.begin(), conns.end());
+      }
     }
-
-    previous = &inputMemory[0];
-    for (int i = 1; i < input_memory; i++) {
-      auto conns =
-          connect(*previous, inputMemory[i], ConnectionPattern::OneToOne);
-      memoryTunnels.insert(memoryTunnels.end(), conns.begin(), conns.end());
-      previous = &inputMemory[i];
+    std::reverse(inputMemory.begin(), inputMemory.end());
+    for (auto &group : inputMemory) {
+      std::reverse(group.begin(), group.end());
+    }
+    for (auto &group : inputMemory) {
+      for (auto &node : group) {
+        _sortedNodes.emplace_back(node);
+      }
     }
 
     Group outputNodes;
     for (int i = 0; i < outputs; i++) {
-      auto &node = _nodes.emplace_back(HiddenNode(true));
+      auto &node = _nodes.emplace_front(HiddenNode(true));
+      _sortedNodes.emplace_back(node);
       outputNodes.emplace_back(node);
     }
 
     connect(*previous, outputNodes, ConnectionPattern::AllToAll);
 
-    std::reverse(inputMemory.begin(), inputMemory.end());
-    connect(inputNodes, inputMemory.back(), ConnectionPattern::OneToOne);
+    auto imemConns =
+        connect(inputNodes, inputMemory.back(), ConnectionPattern::OneToOne);
+    memoryTunnels.insert(memoryTunnels.end(), imemConns.begin(),
+                         imemConns.end());
+
     for (auto &group : inputMemory) {
       connect(group, layers[0], ConnectionPattern::AllToAll);
     }
-    std::reverse(outputMemory.begin(), outputMemory.end());
-    connect(outputNodes, outputMemory.back(), ConnectionPattern::OneToOne);
+
+    auto omemConns =
+        connect(outputNodes, outputMemory.back(), ConnectionPattern::OneToOne);
+    memoryTunnels.insert(memoryTunnels.end(), omemConns.begin(),
+                         omemConns.end());
+
     for (auto &group : outputMemory) {
       connect(group, layers[0], ConnectionPattern::AllToAll);
     }
@@ -118,7 +117,7 @@ public:
   Group addMemoryCell(int size) {
     Group res;
     for (int y = 0; y < size; y++) {
-      auto &node = _nodes.emplace_back(HiddenNode(false, true));
+      auto &node = _nodes.emplace_front(HiddenNode(false, true));
       auto &hiddenNode = std::get<HiddenNode>(node);
       hiddenNode.setBias(NeuroFloatZeros);
       hiddenNode.setSquash(IdentityS(), IdentityD());

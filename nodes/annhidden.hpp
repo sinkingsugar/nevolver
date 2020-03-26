@@ -16,7 +16,7 @@ public:
 
     if (_connections.self) {
       _state =
-          _connections.self->gain * *_connections.self->weight * _state * _bias;
+          _connections.self->gain * *_connections.self->weight * _state + _bias;
     } else {
       _state = _bias;
     }
@@ -95,7 +95,7 @@ public:
 
     if (_connections.self) {
       _state =
-          _connections.self->gain * *_connections.self->weight * _state * _bias;
+          _connections.self->gain * *_connections.self->weight * _state + _bias;
     } else {
       _state = _bias;
     }

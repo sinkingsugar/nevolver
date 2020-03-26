@@ -3,6 +3,7 @@
 #include "networks/narx.hpp"
 #include "networks/perceptron.hpp"
 #include <fstream>
+#include <iomanip> // std::setprecision
 #include <iostream>
 
 namespace Nevolver {} // namespace Nevolver
@@ -56,6 +57,102 @@ int main() {
   }
 
   {
+    auto perceptron = Nevolver::Perceptron(2, {4, 3}, 1);
+
+    for (auto &w : perceptron.weights()) {
+      w = 0.3;
+    }
+    for (auto &n : perceptron.nodes()) {
+      try {
+        auto &hn = std::get<Nevolver::HiddenNode>(n);
+        // hn.setSquash(Nevolver::IdentityS(), Nevolver::IdentityD());
+        hn.setBias(0.2);
+      } catch (...) {
+      }
+    }
+
+    std::cout << "Perceptron vectors:\n";
+    std::cout << std::setprecision(16) << perceptron.activate({1.0, 0.0})[0]
+              << " (0.0)\n";
+    std::cout << std::setprecision(16) << perceptron.activateFast({1.0, 0.0})[0]
+              << " (0.0)\n";
+    perceptron.propagate({1.0});
+    std::cout << std::setprecision(16) << perceptron.activate({0.0, 0.0})[0]
+              << " (1.0)\n";
+    std::cout << std::setprecision(16) << perceptron.activateFast({0.0, 0.0})[0]
+              << " (1.0)\n";
+    perceptron.propagate({1.0});
+    std::cout << std::setprecision(16) << perceptron.activate({0.0, 1.0})[0]
+              << " (0.0)\n";
+    std::cout << std::setprecision(16) << perceptron.activateFast({0.0, 1.0})[0]
+              << " (0.0)\n";
+    perceptron.propagate({1.0});
+    std::cout << std::setprecision(16) << perceptron.activate({1.0, 1.0})[0]
+              << " (1.0)\n";
+    std::cout << std::setprecision(16) << perceptron.activateFast({1.0, 1.0})[0]
+              << " (1.0)\n";
+    perceptron.propagate({1.0});
+  }
+
+  {
+    auto narx = Nevolver::NARX(2, {4, 3}, 1, 3, 3);
+
+    for (auto &w : narx.weights()) {
+      w = 0.3;
+    }
+    for (auto &n : narx.nodes()) {
+      try {
+        auto &hn = std::get<Nevolver::HiddenNode>(n);
+        // hn.setSquash(Nevolver::IdentityS(), Nevolver::IdentityD());
+        hn.setBias(0.2);
+      } catch (...) {
+      }
+    }
+
+    std::cout << "NARX vectors:\n";
+    std::cout << std::setprecision(16) << narx.activate({1.0, 0.0})[0]
+              << " (0.0)\n";
+    narx.propagate({1.0});
+    std::cout << std::setprecision(16) << narx.activate({0.0, 0.0})[0]
+              << " (1.0)\n";
+    narx.propagate({1.0});
+    std::cout << std::setprecision(16) << narx.activate({0.0, 1.0})[0]
+              << " (0.0)\n";
+    narx.propagate({1.0});
+    std::cout << std::setprecision(16) << narx.activate({1.0, 1.0})[0]
+              << " (1.0)\n";
+    narx.propagate({1.0});
+  }
+
+  {
+    auto lstm = Nevolver::LSTM(2, {4}, 1);
+
+    for (auto &w : lstm.weights()) {
+      w = 0.3;
+    }
+    for (auto &n : lstm.nodes()) {
+      try {
+        auto &hn = std::get<Nevolver::HiddenNode>(n);
+        hn.setBias(0.2);
+      } catch (...) {
+      }
+    }
+
+    /*
+     * 0.7409733018471912
+     * 0.6753102765165867
+     * 0.7604188277530257
+     * 0.8342971423641756
+     */
+
+    std::cout << "LSTM vectors:\n";
+    std::cout << lstm.activate({1.0, 0.0})[0] << " (0.0)\n";
+    std::cout << lstm.activate({0.0, 0.0})[0] << " (1.0)\n";
+    std::cout << lstm.activate({0.0, 1.0})[0] << " (0.0)\n";
+    std::cout << lstm.activate({1.0, 1.0})[0] << " (1.0)\n";
+  }
+
+  {
     auto perceptron = Nevolver::NARX(2, {4, 2}, 1, 4, 4);
     for (auto i = 0; i < 5000; i++) {
       perceptron.activate({0.0, 0.0});
@@ -75,53 +172,53 @@ int main() {
     std::cout << perceptron.activate({1.0, 1.0})[0] << " (1.0)\n";
   }
 
-  {
-    auto lstm = Nevolver::LSTM(1, {6}, 1);
-    for (auto i = 0; i < 25000; i++) {
-      lstm.activate({0.0});
-      lstm.propagate({0.0});
-      lstm.activate({0.0});
-      lstm.propagate({0.0});
-      lstm.activate({0.0});
-      lstm.propagate({1.0});
-      lstm.activate({1.0});
-      lstm.propagate({0.0});
-      lstm.activate({0.0});
-      lstm.propagate({0.0});
-      lstm.activate({0.0});
-      auto err = lstm.propagate({1.0});
-      if (!(i % 10000))
-        std::cout << "MSE: " << err << "\n";
-      lstm.clear();
-    }
+  // {
+  //   auto lstm = Nevolver::LSTM(1, {6}, 1);
+  //   for (auto i = 0; i < 25000; i++) {
+  //     lstm.activate({0.0});
+  //     lstm.propagate({0.0});
+  //     lstm.activate({0.0});
+  //     lstm.propagate({0.0});
+  //     lstm.activate({0.0});
+  //     lstm.propagate({1.0});
+  //     lstm.activate({1.0});
+  //     lstm.propagate({0.0});
+  //     lstm.activate({0.0});
+  //     lstm.propagate({0.0});
+  //     lstm.activate({0.0});
+  //     auto err = lstm.propagate({1.0});
+  //     if (!(i % 10000))
+  //       std::cout << "MSE: " << err << "\n";
+  //     lstm.clear();
+  //   }
 
-    std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
-    std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
-    std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
-    std::cout << lstm.activate({1.0})[0] << " (0.0)\n";
-    std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
-    std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
+  //   std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+  //   std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+  //   std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
+  //   std::cout << lstm.activate({1.0})[0] << " (0.0)\n";
+  //   std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+  //   std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
 
-    {
-      std::ofstream os("nn.cereal", std::ios::binary);
-      cereal::BinaryOutputArchive oa(os);
-      oa(lstm);
-    }
+  //   {
+  //     std::ofstream os("nn.cereal", std::ios::binary);
+  //     cereal::BinaryOutputArchive oa(os);
+  //     oa(lstm);
+  //   }
 
-    {
-      std::ifstream is("nn.cereal", std::ios::binary);
-      cereal::BinaryInputArchive ia(is);
-      Nevolver::Network lstm2;
-      ia(lstm2);
+  //   {
+  //     std::ifstream is("nn.cereal", std::ios::binary);
+  //     cereal::BinaryInputArchive ia(is);
+  //     Nevolver::Network lstm2;
+  //     ia(lstm2);
 
-      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-      std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
-      std::cout << lstm2.activate({1.0})[0] << " (0.0)\n";
-      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-      std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
-    }
-  }
+  //     std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+  //     std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+  //     std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
+  //     std::cout << lstm2.activate({1.0})[0] << " (0.0)\n";
+  //     std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+  //     std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
+  //   }
+  // }
 
   {
     for (auto i = 0; i < 1000; i++) {

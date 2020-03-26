@@ -35,7 +35,8 @@ public:
       _inputs[i].get().setInput(input[i]);
     }
 
-    for (auto &vnode : _nodes) {
+    for (auto &rnode : _sortedNodes) {
+      auto &vnode = rnode.get();
       std::visit(
           [this](auto &&node) {
             auto activation = node.activate();
@@ -63,7 +64,8 @@ public:
       _inputs[i].get().setInput(input[i]);
     }
 
-    for (auto &vnode : _nodes) {
+    for (auto &rnode : _sortedNodes) {
+      auto &vnode = rnode.get();
       std::visit(
           [this](auto &&node) {
             auto activation = node.activateFast();
@@ -81,7 +83,8 @@ public:
                                bool update = true) {
     size_t outputIdx = targets.size();
     _outputCache.resize(outputIdx); // reuse for MSE
-    for (auto it = _nodes.rbegin(); it != _nodes.rend(); ++it) {
+    for (auto it = _sortedNodes.rbegin(); it != _sortedNodes.rend(); ++it) {
+      auto &vnode = (*it).get();
       std::visit(
           [&](auto &&node) {
             if (node.is_output()) {
@@ -100,7 +103,7 @@ public:
               node.propagate(rate, momentum, update);
             }
           },
-          *it);
+          vnode);
     }
     NeuroFloat mean = NeuroFloatZeros;
     for (auto err : _outputCache) {
@@ -146,20 +149,21 @@ public:
     }
   }
 
-  virtual Network crossover(const Network &other) {
-    Network offspring = *this;
-    // FIXME not so easy, must fixup all references also!
-    // We basically need to redo connections and populate inputs
-    return offspring;
+  static Network crossover(const Network &net1, const Network &net2) {
+    Network res{};
+    return res;
   }
 
   template <class Archive>
   void save(Archive &ar, std::uint32_t const version) const {
     std::unordered_map<const Node *, uint64_t> nodeMap;
+    std::vector<AnyNode> nodes;
     uint64_t idx = 0;
-    for (auto &node : _nodes) {
+    for (auto &node : _sortedNodes) {
       nodeMap.emplace(
-          std::visit([](auto &&node) { return (Node *)&node; }, node), idx);
+          std::visit([](auto &&node) { return (Node *)&node.get(); }, node),
+          idx);
+      nodes.emplace_back(node.get());
       idx++;
     }
 
@@ -182,24 +186,31 @@ public:
       inputs.emplace_back(nodeMap[&inp.get()]);
     }
 
-    ar(_nodes, _weights, conns, inputs);
+    ar(nodes, _weights, conns, inputs);
   }
 
   template <class Archive> void load(Archive &ar, std::uint32_t const version) {
+    std::vector<AnyNode> nodes;
     std::vector<ConnectionInfo> conns;
     std::vector<uint64_t> inputs;
 
-    ar(_nodes, _weights, conns, inputs);
+    ar(nodes, _weights, conns, inputs);
+
+    for (auto &node : nodes) {
+      auto &nref = _nodes.emplace_front(node);
+      _sortedNodes.emplace_back(nref);
+    }
 
     for (auto &conn : conns) {
-      auto &c = connect(_nodes[conn.fromIdx], _nodes[conn.toIdx]);
+      auto &c = connect(_sortedNodes[conn.fromIdx].get(),
+                        _sortedNodes[conn.toIdx].get());
       if (conn.hasGater)
-        gate(_nodes[conn.gaterIdx], c);
+        gate(_sortedNodes[conn.gaterIdx].get(), c);
       c.weight = &_weights[conn.weightIdx];
     }
 
     for (auto idx : inputs) {
-      _inputs.emplace_back(std::get<InputNode>(_nodes[idx]));
+      _inputs.emplace_back(std::get<InputNode>(_sortedNodes[idx].get()));
     }
   }
 
@@ -216,12 +227,18 @@ public:
     }
   };
 
+  std::vector<NeuroFloat> &weights() { return _weights; }
+
+  std::list<Connection> &connections() { return _connections; }
+
+  std::list<AnyNode> &nodes() { return _nodes; }
+
 protected:
   Connection &connect(AnyNode &from, AnyNode &to) {
     auto fptr = std::visit([](auto &&node) { return (Node *)&node; }, from);
     auto tptr = std::visit([](auto &&node) { return (Node *)&node; }, to);
 
-    auto &conn = _connections.emplace_back(Connection{fptr, tptr, nullptr});
+    auto &conn = _connections.emplace_front(Connection{fptr, tptr, nullptr});
 
     if (fptr == tptr) {
       std::visit([&conn](auto &&node) { node.addSelfConnection(conn); }, to);
@@ -282,7 +299,7 @@ protected:
         conns.emplace_back(connect(from[i], to[i]));
       }
     } break;
-    };
+    }
     return conns;
   }
 
@@ -305,7 +322,9 @@ protected:
             GatingPattern pattern) {
     std::set<const Node *> nodesFrom;
     std::set<const Node *> nodesTo;
+    std::set<const Connection *> conns;
     for (auto &conn : connections) {
+      conns.insert(&conn.get());
       nodesFrom.insert(conn.get().from);
       nodesTo.insert(conn.get().to);
     }
@@ -313,36 +332,39 @@ protected:
     auto gsize = group.size();
     switch (pattern) {
     case GatingPattern::Input: {
-      assert(gsize == nodesTo.size());
       size_t idx = 0;
       for (auto node : nodesTo) {
-        auto &gater = group[idx++];
+        idx = idx % gsize;
+        auto &gater = group[idx];
         for (auto &conn : node->connections().inbound) {
-          gate(gater, *conn);
+          if (conns.count(conn))
+            gate(gater, *conn);
         }
+        idx++;
       }
     } break;
     case GatingPattern::Output: {
-      assert(gsize == nodesFrom.size());
       size_t idx = 0;
       for (auto node : nodesFrom) {
-        auto &gater = group[idx++];
+        idx = idx % gsize;
+        auto &gater = group[idx];
+        idx = idx % gsize;
         for (auto &conn : node->connections().outbound) {
-          gate(gater, *conn);
+          if (conns.count(conn))
+            gate(gater, *conn);
         }
+        idx++;
       }
     } break;
     case GatingPattern::Self: {
       size_t idx = 0;
       for (auto node : nodesFrom) {
-        auto &gater = group[idx++];
         idx = idx % gsize;
-        for (auto &conn : connections) {
-          auto connPtr = &conn.get();
-          if (connPtr == node->connections().self) {
-            gate(gater, conn);
-          }
+        auto &gater = group[idx];
+        if (conns.count(node->connections().self)) {
+          gate(gater, *node->connections().self);
         }
+        idx++;
       }
     } break;
     }
@@ -351,8 +373,10 @@ protected:
   void doMutation(NetworkMutations mutation) {}
 
   std::vector<std::reference_wrapper<InputNode>> _inputs;
+  std::vector<std::reference_wrapper<AnyNode>> _sortedNodes;
+
+  std::list<AnyNode> _nodes;
   std::list<Connection> _connections;
-  std::vector<AnyNode> _nodes;
   std::vector<NeuroFloat> _weights;
 
 private:

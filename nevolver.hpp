@@ -72,7 +72,7 @@ using NeuroFloat = float;
 constexpr int NeuroFloatWidth = 1;
 
 #define NEUROWIDE(_v_, _x_)                                                    \
-  NeuroFloat _v_ { float(_x_) }
+  NeuroFloat _v_ { NeuroFloat(_x_) }
 constexpr NeuroFloat NeuroFloatZeros = 0.0;
 constexpr NeuroFloat NeuroFloatOnes = 1.0;
 
