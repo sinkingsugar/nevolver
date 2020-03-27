@@ -134,7 +134,7 @@ private:
 class Node;
 class InputNode;
 class HiddenNode;
-class Connection;
+struct Connection;
 
 using AnyNode = std::variant<InputNode, HiddenNode>;
 using Group = std::vector<std::reference_wrapper<AnyNode>>;
