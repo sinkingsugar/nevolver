@@ -151,7 +151,7 @@ public:
     for (auto &weight : _weights) {
       auto chance = Random::nextDouble();
       if (chance < weight_rate) {
-        weight += Random::normal(0.0, 0.1);
+        weight.first += Random::normal(0.0, 0.1);
       }
     }
 
@@ -172,6 +172,8 @@ public:
   void save(Archive &ar, std::uint32_t const version) const {
     std::unordered_map<const Node *, uint64_t> nodeMap;
     std::vector<AnyNode> nodes;
+    std::vector<NeuroFloat> weights;
+
     uint64_t idx = 0;
     for (auto &node : _sortedNodes) {
       nodeMap.emplace((Node *)&node.get(), idx);
@@ -182,7 +184,8 @@ public:
     std::unordered_map<const NeuroFloat *, uint64_t> wMap;
     idx = 0;
     for (auto &w : _weights) {
-      wMap.emplace(&w, idx);
+      wMap.emplace(&w.first, idx);
+      weights.push_back(w.first);
       idx++;
     }
 
@@ -198,15 +201,16 @@ public:
       inputs.emplace_back(nodeMap[&inp.get()]);
     }
 
-    ar(nodes, _weights, conns, inputs);
+    ar(nodes, weights, conns, inputs);
   }
 
   template <class Archive> void load(Archive &ar, std::uint32_t const version) {
     std::vector<AnyNode> nodes;
-    std::vector<ConnectionInfo> conns;
     std::vector<uint64_t> inputs;
+    std::vector<ConnectionInfo> conns;
+    std::vector<NeuroFloat> weights;
 
-    ar(nodes, _weights, conns, inputs);
+    ar(nodes, weights, conns, inputs);
 
     for (auto &node : nodes) {
       auto &nref = _nodes.emplace_front(node);
@@ -218,7 +222,10 @@ public:
                         _sortedNodes[conn.toIdx].get());
       if (conn.hasGater)
         gate(_sortedNodes[conn.gaterIdx].get(), c);
-      c.weight = &_weights[conn.weightIdx];
+      auto &w = _weights.emplace_front();
+      w.first = weights[conn.weightIdx];
+      w.second.insert(&c);
+      c.weight = &w.first;
     }
 
     for (auto idx : inputs) {
@@ -239,17 +246,20 @@ public:
     }
   };
 
-  std::vector<NeuroFloat> &weights() { return _weights; }
+  std::deque<std::pair<NeuroFloat, std::unordered_set<const Connection *>>> &
+  weights() {
+    return _weights;
+  }
 
-  const std::list<Connection> &connections() { return _connections; }
+  const std::deque<Connection> &connections() { return _connections; }
 
   const std::vector<std::reference_wrapper<AnyNode>> &nodes() {
     return _sortedNodes;
   }
 
-protected:
-  std::list<AnyNode>::iterator remove(std::list<AnyNode>::iterator &nit) {
-    AnyNode &node = *nit;
+  template <typename NodesIterator>
+  NodesIterator removeNode(NodesIterator &nit) {
+    AnyNode &node = (*nit).get();
     if (node.index() == 0)
       return ++nit; // don't remove inputs
 
@@ -257,6 +267,27 @@ protected:
 
     if (nptr->isOutput())
       return ++nit; // don't remove outputs
+
+    cleanupNode(node);
+
+    // need to erase from sorted
+    // this will shift ptrs around
+    auto sit = _nodes.begin();
+    while (sit != _nodes.end()) {
+      auto &inode = *sit;
+      if (&inode == &node) {
+        _nodes.erase(sit);
+        break;
+      }
+      ++sit;
+    }
+
+    return _sortedNodes.erase(nit);
+  }
+
+protected:
+  void cleanupNode(AnyNode &node) {
+    const Node *nptr = (Node *)&node;
 
     // need to remove all connections
     for (auto &conn : nptr->connections().outbound) {
@@ -273,6 +304,20 @@ protected:
     for (auto &conn : nptr->connections().gate) {
       ungate(node, *conn);
     }
+  }
+
+  template <typename NodesIterator>
+  NodesIterator removeAnyNode(NodesIterator &nit) {
+    AnyNode &node = *nit;
+    if (node.index() == 0)
+      return ++nit; // don't remove inputs
+
+    const Node *nptr = (Node *)&node;
+
+    if (nptr->isOutput())
+      return ++nit; // don't remove outputs
+
+    cleanupNode(node);
 
     // need to erase from sorted
     // this will shift ptrs around
@@ -355,8 +400,8 @@ protected:
     return conns;
   }
 
-  std::list<Connection>::iterator
-  disconnect(std::list<Connection>::iterator &cit) {
+  template <typename ConnectionsIterator>
+  ConnectionsIterator disconnect(ConnectionsIterator &cit) {
     Connection &conn = *cit;
     if (conn.from != conn.to) {
       conn.from->removeOutboundConnection(conn);
@@ -367,6 +412,7 @@ protected:
     if (conn.gater) {
       conn.gater->removeGate(conn);
     }
+
     return _connections.erase(cit);
   }
 
@@ -433,7 +479,7 @@ protected:
             GatingPattern pattern) {
     VectorSet<const Node *> nodesFrom;
     VectorSet<const Node *> nodesTo;
-    std::set<const Connection *> conns;
+    std::unordered_set<const Connection *> conns;
     for (auto &conn : connections) {
       conns.insert(&conn.get());
       nodesFrom.insert(conn.get().from);
@@ -481,9 +527,10 @@ protected:
   std::vector<std::reference_wrapper<InputNode>> _inputs;
   std::vector<std::reference_wrapper<AnyNode>> _sortedNodes;
 
-  std::list<AnyNode> _nodes;
-  std::list<Connection> _connections;
-  std::vector<NeuroFloat> _weights;
+  std::deque<AnyNode> _nodes;
+  std::deque<Connection> _connections;
+  std::deque<std::pair<NeuroFloat, std::unordered_set<const Connection *>>>
+      _weights;
 
 private:
 #ifdef NEVOLVER_WIDE

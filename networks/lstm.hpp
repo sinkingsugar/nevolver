@@ -115,10 +115,11 @@ public:
 #endif
 
     // finally setup weights now that we know how many we need
-    _weights.reserve(_connections.size());
     for (auto &conn : _connections) {
-      auto &w = _weights.emplace_back(Random::normal(0.0, 1.0));
-      conn.weight = &w;
+      auto &w = _weights.emplace_front();
+      w.first = Random::normal(0.0, 1.0);
+      w.second.insert(&conn);
+      conn.weight = &w.first;
     }
   }
 };

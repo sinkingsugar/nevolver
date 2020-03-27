@@ -3,13 +3,13 @@
 
 #include "random.hpp"
 #include <cassert>
+#include <deque>
 #include <functional>
 #include <iostream>
-#include <list>
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <set>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -19,8 +19,8 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/cereal.hpp>
+#include <cereal/types/deque.hpp>
 #include <cereal/types/functional.hpp>
-#include <cereal/types/list.hpp>
 #include <cereal/types/variant.hpp>
 #include <cereal/types/vector.hpp>
 

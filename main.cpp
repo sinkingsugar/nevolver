@@ -63,7 +63,7 @@ int main() {
     auto perceptron = Nevolver::Perceptron(2, {4, 3}, 1);
 
     for (auto &w : perceptron.weights()) {
-      w = 0.3;
+      w.first = 0.3;
     }
     for (auto &n : perceptron.nodes()) {
       try {
@@ -112,7 +112,7 @@ int main() {
     auto narx = Nevolver::NARX(2, {4, 3}, 1, 3, 3);
 
     for (auto &w : narx.weights()) {
-      w = 0.3;
+      w.first = 0.3;
     }
     for (auto &n : narx.nodes()) {
       try {
@@ -149,7 +149,7 @@ int main() {
     auto lstm = Nevolver::LSTM(2, {4, 2}, 1);
 
     for (auto &w : lstm.weights()) {
-      w = 0.3;
+      w.first = 0.3;
     }
     for (auto &n : lstm.nodes()) {
       try {
@@ -174,9 +174,15 @@ int main() {
      0.672610483084914 (1.0)
      0.7745991463085304 (0.0)
      0.8661533781635797 (1.0)
-     */
+    */
+    auto &nodes = lstm.nodes();
+    auto nit = nodes.begin();
+    while (nit != nodes.end()) {
+      nit = lstm.removeNode(nit);
+    }
+    std::cout << "NNodes: " << lstm.nodes().size() << "\n";
+    std::cout << "NConns: " << lstm.connections().size() << "\n";
   }
-
   {
     auto perceptron = Nevolver::NARX(2, {4, 2}, 1, 4, 4);
     for (auto i = 0; i < 5000; i++) {
