@@ -16,14 +16,14 @@ public:
 
     if (_connections.self) {
       _state =
-          _connections.self->gain * *_connections.self->weight * _state + _bias;
+          _connections.self->gain * _connections.self->w() * _state + _bias;
     } else {
       _state = _bias;
     }
 
     for (auto connection : _connections.inbound) {
       _state +=
-          connection->from->current() * *connection->weight * connection->gain;
+          connection->from->current() * connection->w() * connection->gain;
     }
 
     auto fwd = std::visit([&](auto &&f) { return f(_state); }, _squash);
@@ -37,7 +37,7 @@ public:
       auto pos = std::find(std::begin(_tmpNodes), std::end(_tmpNodes), node);
       if (pos != std::end(_tmpNodes)) {
         auto idx = std::distance(std::begin(_tmpNodes), pos);
-        _tmpInfluence[idx] += *connection->weight * connection->from->current();
+        _tmpInfluence[idx] += connection->w() * connection->from->current();
       } else {
         _tmpNodes.emplace_back(node);
         auto plus =
@@ -45,7 +45,7 @@ public:
                 ? static_cast<const HiddenNode *>(node)->_old
                 : NeuroFloatZeros;
         _tmpInfluence.emplace_back(
-            *connection->weight * connection->from->current() + plus);
+            connection->w() * connection->from->current() + plus);
       }
       connection->gain = _activation;
     }
@@ -53,7 +53,7 @@ public:
     for (auto connection : _connections.inbound) {
       if (_connections.self) {
         connection->eligibility =
-            _connections.self->gain * *_connections.self->weight *
+            _connections.self->gain * _connections.self->w() *
                 connection->eligibility +
             connection->from->current() * connection->gain;
       } else {
@@ -71,8 +71,7 @@ public:
           auto idx = std::distance(std::begin(connection->xtraces.nodes), pos);
           if (node->connections().self) {
             connection->xtraces.values[idx] =
-                node->connections().self->gain *
-                    *node->connections().self->weight *
+                node->connections().self->gain * node->connections().self->w() *
                     connection->xtraces.values[idx] +
                 _derivative * connection->eligibility * influence;
           } else {
@@ -95,14 +94,14 @@ public:
 
     if (_connections.self) {
       _state =
-          _connections.self->gain * *_connections.self->weight * _state + _bias;
+          _connections.self->gain * _connections.self->w() * _state + _bias;
     } else {
       _state = _bias;
     }
 
     for (auto connection : _connections.inbound) {
       _state +=
-          connection->from->current() * *connection->weight * connection->gain;
+          connection->from->current() * connection->w() * connection->gain;
     }
 
     auto fwd = std::visit([&](auto &&f) { return f(_state); }, _squash);
@@ -127,7 +126,7 @@ public:
       NeuroFloat error = NeuroFloatZeros;
 
       for (auto connection : _connections.outbound) {
-        error += connection->to->responsibility() * *connection->weight *
+        error += connection->to->responsibility() * connection->w() *
                  connection->gain;
       }
       _projected = _derivative * error;
@@ -140,7 +139,7 @@ public:
             node->connections().self && node->connections().self->gater == this
                 ? static_cast<const HiddenNode *>(node)->_old
                 : NeuroFloatZeros;
-        influence += *connection->weight * connection->from->current();
+        influence += connection->w() * connection->from->current();
         error += connection->to->responsibility() * influence;
       }
 
@@ -166,7 +165,7 @@ public:
       auto deltaWeight = wrate * gradient * _mask;
       if (update) {
         deltaWeight += wmomentum * connection->previousDeltaWeight;
-        *connection->weight += deltaWeight;
+        connection->weight->first += deltaWeight;
         connection->previousDeltaWeight = deltaWeight;
       }
     }

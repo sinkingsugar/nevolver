@@ -19,7 +19,6 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/cereal.hpp>
-#include <cereal/types/deque.hpp>
 #include <cereal/types/functional.hpp>
 #include <cereal/types/variant.hpp>
 #include <cereal/types/vector.hpp>
@@ -135,10 +134,11 @@ private:
 class Node;
 class InputNode;
 class HiddenNode;
-class Weight;
+class Connection;
 
 using AnyNode = std::variant<InputNode, HiddenNode>;
 using Group = std::vector<std::reference_wrapper<AnyNode>>;
+using Weight = std::pair<NeuroFloat, std::unordered_set<const Connection *>>;
 } // namespace Nevolver
 
 #ifdef NEVOLVER_WIDE

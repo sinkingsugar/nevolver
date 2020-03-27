@@ -106,12 +106,12 @@ public:
       auto &w = _weights.emplace_front();
       w.first = Random::normal(0.0, 1.0);
       w.second.insert(&conn);
-      conn.weight = &w.first;
+      conn.weight = &w;
     }
 
     // Fix up memory weights
     for (auto &conn : memoryTunnels) {
-      *conn.get().weight = NeuroFloatOnes;
+      conn.get().weight->first = NeuroFloatOnes;
     }
   }
 

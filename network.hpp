@@ -181,10 +181,10 @@ public:
       idx++;
     }
 
-    std::unordered_map<const NeuroFloat *, uint64_t> wMap;
+    std::unordered_map<const Weight *, uint64_t> wMap;
     idx = 0;
     for (auto &w : _weights) {
-      wMap.emplace(&w.first, idx);
+      wMap.emplace(&w, idx);
       weights.push_back(w.first);
       idx++;
     }
@@ -225,7 +225,7 @@ public:
       auto &w = _weights.emplace_front();
       w.first = weights[conn.weightIdx];
       w.second.insert(&c);
-      c.weight = &w.first;
+      c.weight = &w;
     }
 
     for (auto idx : inputs) {
@@ -246,15 +246,18 @@ public:
     }
   };
 
-  std::deque<std::pair<NeuroFloat, std::unordered_set<const Connection *>>> &
-  weights() {
-    return _weights;
-  }
+  std::deque<Weight> &weights() { return _weights; }
 
   const std::deque<Connection> &connections() { return _connections; }
 
   const std::vector<std::reference_wrapper<AnyNode>> &nodes() {
     return _sortedNodes;
+  }
+
+  void printStats() {
+    std::cout << "Unused-Nodes: " << _unusedNodes.size() << "\n";
+    std::cout << "Unused-Connections: " << _unusedConns.size() << "\n";
+    std::cout << "Unused-Weights: " << _unusedWeights.size() << "\n";
   }
 
   template <typename NodesIterator>
@@ -276,7 +279,8 @@ public:
     while (sit != _nodes.end()) {
       auto &inode = *sit;
       if (&inode == &node) {
-        _nodes.erase(sit);
+        auto idx = std::distance(_nodes.begin(), sit);
+        _unusedNodes.push_back(idx);
         break;
       }
       ++sit;
@@ -288,21 +292,33 @@ public:
 protected:
   void cleanupNode(AnyNode &node) {
     const Node *nptr = (Node *)&node;
-
-    // need to remove all connections
-    for (auto &conn : nptr->connections().outbound) {
-      disconnect(*conn);
-    }
-    for (auto &conn : nptr->connections().inbound) {
-      disconnect(*conn);
-    }
-    if (nptr->connections().self) {
-      disconnect(*nptr->connections().self);
-    }
+    std::vector<Connection *> conns;
 
     // gates
+    // collect first
     for (auto &conn : nptr->connections().gate) {
+      conns.push_back(conn);
+    }
+
+    for (auto &conn : conns) {
       ungate(node, *conn);
+    }
+
+    // need to remove all connections
+    // collected them first then disconnect
+    conns.clear();
+    for (auto &conn : nptr->connections().outbound) {
+      conns.push_back(conn);
+    }
+    for (auto &conn : nptr->connections().inbound) {
+      conns.push_back(conn);
+    }
+    if (nptr->connections().self) {
+      conns.push_back(nptr->connections().self);
+    }
+
+    for (auto &conn : conns) {
+      disconnect(*conn);
     }
   }
 
@@ -331,7 +347,10 @@ protected:
       ++sit;
     }
 
-    return _nodes.erase(nit);
+    auto idx = std::distance(_nodes.begin(), nit);
+    _unusedNodes.push_back(idx);
+
+    return ++nit;
   }
 
   Connection &connect(AnyNode &from, AnyNode &to) {
@@ -409,11 +428,30 @@ protected:
     } else {
       conn.to->removeSelfConnection(conn);
     }
+
     if (conn.gater) {
       conn.gater->removeGate(conn);
     }
 
-    return _connections.erase(cit);
+    conn.weight->second.erase(&conn);
+    if (conn.weight->second.size() == 0) {
+      auto wit = _weights.begin();
+      while (wit != _weights.end()) {
+        auto &w = *wit;
+        if (conn.weight == &w) {
+          auto widx = std::distance(_weights.begin(), wit);
+          _unusedWeights.push_back(widx);
+          break;
+        } else {
+          ++wit;
+        }
+      }
+    }
+
+    auto idx = std::distance(_connections.begin(), cit);
+    _unusedConns.push_back(idx);
+
+    return ++cit;
   }
 
   void disconnect(Connection &conn) {
@@ -529,8 +567,15 @@ protected:
 
   std::deque<AnyNode> _nodes;
   std::deque<Connection> _connections;
-  std::deque<std::pair<NeuroFloat, std::unordered_set<const Connection *>>>
-      _weights;
+  std::deque<Weight> _weights;
+
+  // the following are useful when mutationg
+  // often we remove nodes/conns/weights
+  // but we wanna keep them in memory
+  // in order to recycle
+  std::vector<size_t> _unusedNodes;
+  std::vector<size_t> _unusedConns;
+  std::vector<size_t> _unusedWeights;
 
 private:
 #ifdef NEVOLVER_WIDE

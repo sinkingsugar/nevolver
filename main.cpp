@@ -175,13 +175,19 @@ int main() {
      0.7745991463085304 (0.0)
      0.8661533781635797 (1.0)
     */
+
+    std::cout << "NNodes: " << lstm.nodes().size() << "\n";
+    std::cout << "NConns: " << lstm.connections().size() << "\n";
+    std::cout << "NWeights: " << lstm.weights().size() << "\n";
+
     auto &nodes = lstm.nodes();
     auto nit = nodes.begin();
     while (nit != nodes.end()) {
       nit = lstm.removeNode(nit);
     }
+
     std::cout << "NNodes: " << lstm.nodes().size() << "\n";
-    std::cout << "NConns: " << lstm.connections().size() << "\n";
+    lstm.printStats();
   }
   {
     auto perceptron = Nevolver::NARX(2, {4, 2}, 1, 4, 4);

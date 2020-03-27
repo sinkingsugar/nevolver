@@ -21,7 +21,9 @@ struct Connection final {
   NeuroFloat eligibility{NeuroFloatZeros};
   NeuroFloat previousDeltaWeight{NeuroFloatZeros};
 
-  NeuroFloat *weight;
+  mutable Weight *weight;
+
+  NeuroFloat w() const { return weight->first; }
 
   ConnectionXTraces xtraces;
 };

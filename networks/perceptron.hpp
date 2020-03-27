@@ -46,7 +46,7 @@ public:
       auto &w = _weights.emplace_front();
       w.first = Random::normal(0.0, 1.0);
       w.second.insert(&conn);
-      conn.weight = &w.first;
+      conn.weight = &w;
     }
   }
 };
