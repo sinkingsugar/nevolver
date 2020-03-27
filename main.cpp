@@ -9,13 +9,13 @@
 namespace Nevolver {} // namespace Nevolver
 
 int main() {
-  std::cout << "Hello!\n";
+  // std::cout << "Hello!\n";
 
-  Nevolver::SigmoidS func;
-  std::cout << func(Nevolver::NeuroFloatOnes) << "\n";
+  // Nevolver::SigmoidS func;
+  // std::cout << func(Nevolver::NeuroFloatOnes) << "\n";
 
-  Nevolver::HiddenNode node;
-  std::cout << node.activate() << "\n";
+  // Nevolver::HiddenNode node;
+  // std::cout << node.activate() << "\n";
 
 #ifndef NEVOLVER_WIDE
   {
@@ -32,28 +32,31 @@ int main() {
       if (!(i % 10000))
         std::cout << "MSE: " << err << "\n";
     }
+
+    std::cout << "MLP0: \n";
     std::cout << perceptron.activate({0.0, 0.0})[0] << " (1.0)\n";
     std::cout << perceptron.activate({0.0, 1.0})[0] << " (0.0)\n";
     std::cout << perceptron.activate({1.0, 0.0})[0] << " (0.0)\n";
     std::cout << perceptron.activate({1.0, 1.0})[0] << " (1.0)\n";
 
-    // {
-    //   std::ofstream os("nn.cereal", std::ios::binary);
-    //   cereal::BinaryOutputArchive oa(os);
-    //   oa(perceptron);
-    // }
+    {
+      std::ofstream os("nn.cereal", std::ios::binary);
+      cereal::BinaryOutputArchive oa(os);
+      oa(perceptron);
+    }
 
-    // {
-    //   std::ifstream is("nn.cereal", std::ios::binary);
-    //   cereal::BinaryInputArchive ia(is);
-    //   Nevolver::Network perceptron2;
-    //   ia(perceptron2);
+    {
+      std::ifstream is("nn.cereal", std::ios::binary);
+      cereal::BinaryInputArchive ia(is);
+      Nevolver::Network perceptron2;
+      ia(perceptron2);
 
-    //   std::cout << perceptron2.activate({0.0, 0.0})[0] << " (1.0)\n";
-    //   std::cout << perceptron2.activate({0.0, 1.0})[0] << " (0.0)\n";
-    //   std::cout << perceptron2.activate({1.0, 0.0})[0] << " (0.0)\n";
-    //   std::cout << perceptron2.activate({1.0, 1.0})[0] << " (1.0)\n";
-    // }
+      std::cout << "MLP1: \n";
+      std::cout << perceptron2.activate({0.0, 0.0})[0] << " (1.0)\n";
+      std::cout << perceptron2.activate({0.0, 1.0})[0] << " (0.0)\n";
+      std::cout << perceptron2.activate({1.0, 0.0})[0] << " (0.0)\n";
+      std::cout << perceptron2.activate({1.0, 1.0})[0] << " (1.0)\n";
+    }
   }
 
   {
@@ -64,14 +67,15 @@ int main() {
     }
     for (auto &n : perceptron.nodes()) {
       try {
-        auto &hn = std::get<Nevolver::HiddenNode>(n);
+        auto &node = n.get();
+        auto &hn = std::get<Nevolver::HiddenNode>(node);
         // hn.setSquash(Nevolver::IdentityS(), Nevolver::IdentityD());
         hn.setBias(0.2);
       } catch (...) {
       }
     }
 
-    std::cout << "Perceptron vectors:\n";
+    std::cout << "MLPv:\n";
     std::cout << std::setprecision(16) << perceptron.activate({1.0, 0.0})[0]
               << " (0.0)\n";
     std::cout << std::setprecision(16) << perceptron.activateFast({1.0, 0.0})[0]
@@ -91,7 +95,6 @@ int main() {
               << " (1.0)\n";
     std::cout << std::setprecision(16) << perceptron.activateFast({1.0, 1.0})[0]
               << " (1.0)\n";
-    perceptron.propagate({1.0});
   }
 
   {
@@ -102,14 +105,15 @@ int main() {
     }
     for (auto &n : narx.nodes()) {
       try {
-        auto &hn = std::get<Nevolver::HiddenNode>(n);
+        auto &node = n.get();
+        auto &hn = std::get<Nevolver::HiddenNode>(node);
         // hn.setSquash(Nevolver::IdentityS(), Nevolver::IdentityD());
         hn.setBias(0.2);
       } catch (...) {
       }
     }
 
-    std::cout << "NARX vectors:\n";
+    std::cout << "NARXv:\n";
     std::cout << std::setprecision(16) << narx.activate({1.0, 0.0})[0]
               << " (0.0)\n";
     narx.propagate({1.0});
@@ -121,34 +125,30 @@ int main() {
     narx.propagate({1.0});
     std::cout << std::setprecision(16) << narx.activate({1.0, 1.0})[0]
               << " (1.0)\n";
-    narx.propagate({1.0});
   }
 
   {
-    auto lstm = Nevolver::LSTM(2, {4}, 1);
+    auto lstm = Nevolver::LSTM(2, {4, 2}, 1);
 
     for (auto &w : lstm.weights()) {
       w = 0.3;
     }
     for (auto &n : lstm.nodes()) {
       try {
-        auto &hn = std::get<Nevolver::HiddenNode>(n);
+        auto &node = n.get();
+        auto &hn = std::get<Nevolver::HiddenNode>(node);
         hn.setBias(0.2);
       } catch (...) {
       }
     }
 
-    /*
-     * 0.7409733018471912
-     * 0.6753102765165867
-     * 0.7604188277530257
-     * 0.8342971423641756
-     */
-
-    std::cout << "LSTM vectors:\n";
+    std::cout << "LSTMv:\n";
     std::cout << lstm.activate({1.0, 0.0})[0] << " (0.0)\n";
+    lstm.propagate({1.0});
     std::cout << lstm.activate({0.0, 0.0})[0] << " (1.0)\n";
+    lstm.propagate({1.0});
     std::cout << lstm.activate({0.0, 1.0})[0] << " (0.0)\n";
+    lstm.propagate({1.0});
     std::cout << lstm.activate({1.0, 1.0})[0] << " (1.0)\n";
   }
 
@@ -172,53 +172,55 @@ int main() {
     std::cout << perceptron.activate({1.0, 1.0})[0] << " (1.0)\n";
   }
 
-  // {
-  //   auto lstm = Nevolver::LSTM(1, {6}, 1);
-  //   for (auto i = 0; i < 25000; i++) {
-  //     lstm.activate({0.0});
-  //     lstm.propagate({0.0});
-  //     lstm.activate({0.0});
-  //     lstm.propagate({0.0});
-  //     lstm.activate({0.0});
-  //     lstm.propagate({1.0});
-  //     lstm.activate({1.0});
-  //     lstm.propagate({0.0});
-  //     lstm.activate({0.0});
-  //     lstm.propagate({0.0});
-  //     lstm.activate({0.0});
-  //     auto err = lstm.propagate({1.0});
-  //     if (!(i % 10000))
-  //       std::cout << "MSE: " << err << "\n";
-  //     lstm.clear();
-  //   }
+  {
+    auto lstm = Nevolver::LSTM(1, {4}, 1);
+    for (auto i = 0; i < 50000; i++) {
+      lstm.activate({0.0});
+      lstm.propagate({0.0});
+      lstm.activate({0.0});
+      lstm.propagate({0.0});
+      lstm.activate({0.0});
+      lstm.propagate({1.0});
+      lstm.activate({1.0});
+      lstm.propagate({0.0});
+      lstm.activate({0.0});
+      lstm.propagate({0.0});
+      lstm.activate({0.0});
+      auto err = lstm.propagate({1.0});
+      if (!(i % 10000))
+        std::cout << "MSE: " << err << "\n";
+      lstm.clear();
+    }
 
-  //   std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
-  //   std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
-  //   std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
-  //   std::cout << lstm.activate({1.0})[0] << " (0.0)\n";
-  //   std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
-  //   std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
+    std::cout << "LSTM0: \n";
+    std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+    std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+    std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
+    std::cout << lstm.activate({1.0})[0] << " (0.0)\n";
+    std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+    std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
 
-  //   {
-  //     std::ofstream os("nn.cereal", std::ios::binary);
-  //     cereal::BinaryOutputArchive oa(os);
-  //     oa(lstm);
-  //   }
+    {
+      std::ofstream os("nn.cereal", std::ios::binary);
+      cereal::BinaryOutputArchive oa(os);
+      oa(lstm);
+    }
 
-  //   {
-  //     std::ifstream is("nn.cereal", std::ios::binary);
-  //     cereal::BinaryInputArchive ia(is);
-  //     Nevolver::Network lstm2;
-  //     ia(lstm2);
+    {
+      std::ifstream is("nn.cereal", std::ios::binary);
+      cereal::BinaryInputArchive ia(is);
+      Nevolver::Network lstm2;
+      ia(lstm2);
 
-  //     std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-  //     std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-  //     std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
-  //     std::cout << lstm2.activate({1.0})[0] << " (0.0)\n";
-  //     std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-  //     std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
-  //   }
-  // }
+      std::cout << "LSTM1: \n";
+      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+      std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
+      std::cout << lstm2.activate({1.0})[0] << " (0.0)\n";
+      std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+      std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
+    }
+  }
 
   {
     for (auto i = 0; i < 1000; i++) {

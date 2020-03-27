@@ -17,6 +17,7 @@
 #include <cmath>
 
 #include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
 #include <cereal/cereal.hpp>
 #include <cereal/types/functional.hpp>
 #include <cereal/types/list.hpp>
@@ -68,7 +69,7 @@ constexpr NeuroFloat NeuroFloatOnes = NeuroFloat{1.0, 1.0, 1.0, 1.0};
 
 #else
 
-using NeuroFloat = float;
+using NeuroFloat = double;
 constexpr int NeuroFloatWidth = 1;
 
 #define NEUROWIDE(_v_, _x_)                                                    \

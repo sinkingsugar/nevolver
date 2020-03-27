@@ -155,10 +155,10 @@ public:
       auto gradient = _projected * connection->eligibility;
 
       // Gated nets only
-      size_t size = _tmpNodes.size();
+      size_t size = connection->xtraces.nodes.size();
       for (size_t i = 0; i < size; i++) {
-        auto node = _tmpNodes[i];
-        auto value = _tmpInfluence[i];
+        auto node = connection->xtraces.nodes[i];
+        auto value = connection->xtraces.values[i];
 
         gradient += node->responsibility() * value;
       }

@@ -6,12 +6,18 @@
 namespace Nevolver {
 struct IdentityS final {
   NeuroFloat operator()(const NeuroFloat &input) const { return input; }
+
+  template <class Archive>
+  void serialize(Archive &ar, std::uint32_t const version) {}
 };
 
 struct IdentityD final {
   NeuroFloat operator()(const NeuroFloat &state, const NeuroFloat &fwd) const {
     return NeuroFloatOnes;
   }
+
+  template <class Archive>
+  void serialize(Archive &ar, std::uint32_t const version) {}
 };
 
 struct SigmoidS final {
@@ -26,12 +32,18 @@ struct SigmoidS final {
     return 1.0 / (1.0 + std::exp(-input));
 #endif
   }
+
+  template <class Archive>
+  void serialize(Archive &ar, std::uint32_t const version) {}
 };
 
 struct SigmoidD final {
   NeuroFloat operator()(const NeuroFloat &state, const NeuroFloat &fwd) const {
     return fwd * (1.0 - fwd);
   }
+
+  template <class Archive>
+  void serialize(Archive &ar, std::uint32_t const version) {}
 };
 
 using SquashFunc = std::variant<IdentityS, SigmoidS>;

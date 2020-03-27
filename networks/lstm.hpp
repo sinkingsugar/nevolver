@@ -1,7 +1,8 @@
 #ifndef LSTM_H
 #define LSTM_H
 
-#include "../nevolver.hpp"
+#include "../network.hpp"
+#include "../nodes/annhidden.hpp"
 
 namespace Nevolver {
 class LSTM final : public Network {

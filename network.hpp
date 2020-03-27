@@ -18,6 +18,20 @@ enum NetworkMutations {
   SubBackConnection
 };
 
+template <typename T> class VectorSet : public std::vector<T> {
+public:
+  using iterator = typename std::vector<T>::iterator;
+  using value_type = typename std::vector<T>::value_type;
+
+  std::pair<iterator, bool> insert(const value_type &val) {
+    auto it = std::find(this->begin(), this->end(), val);
+    if (it == this->end())
+      it = std::vector<T>::insert(this->end(), val);
+
+    return std::pair<iterator, bool>(it, true);
+  }
+};
+
 class Network {
 public:
   virtual const std::vector<NeuroFloat> &
@@ -160,9 +174,7 @@ public:
     std::vector<AnyNode> nodes;
     uint64_t idx = 0;
     for (auto &node : _sortedNodes) {
-      nodeMap.emplace(
-          std::visit([](auto &&node) { return (Node *)&node.get(); }, node),
-          idx);
+      nodeMap.emplace((Node *)&node.get(), idx);
       nodes.emplace_back(node.get());
       idx++;
     }
@@ -229,23 +241,26 @@ public:
 
   std::vector<NeuroFloat> &weights() { return _weights; }
 
-  std::list<Connection> &connections() { return _connections; }
+  const std::list<Connection> &connections() { return _connections; }
 
-  std::list<AnyNode> &nodes() { return _nodes; }
+  const std::vector<std::reference_wrapper<AnyNode>> &nodes() {
+    return _sortedNodes;
+  }
+
+  const std::vector<std::reference_wrapper<Connection>> &gates() {
+    return _gates;
+  }
 
 protected:
   Connection &connect(AnyNode &from, AnyNode &to) {
-    auto fptr = std::visit([](auto &&node) { return (Node *)&node; }, from);
-    auto tptr = std::visit([](auto &&node) { return (Node *)&node; }, to);
+    auto &conn = _connections.emplace_front(
+        Connection{(Node *)&from, (Node *)&to, nullptr});
 
-    auto &conn = _connections.emplace_front(Connection{fptr, tptr, nullptr});
-
-    if (fptr == tptr) {
-      std::visit([&conn](auto &&node) { node.addSelfConnection(conn); }, to);
+    if (&from == &to) {
+      std::visit([&](auto &&node) { node.addSelfConnection(conn); }, to);
     } else {
-      std::visit([&conn](auto &&node) { node.addOutboundConnection(conn); },
-                 from);
-      std::visit([&conn](auto &&node) { node.addInboundConnection(conn); }, to);
+      std::visit([&](auto &&node) { node.addOutboundConnection(conn); }, from);
+      std::visit([&](auto &&node) { node.addInboundConnection(conn); }, to);
     }
 
     return conn;
@@ -304,10 +319,9 @@ protected:
   }
 
   void gate(AnyNode &gater, Connection &conn) {
-    auto gaterPtr =
-        std::visit([](auto &&node) { return (Node *)&node; }, gater);
-    conn.gater = gaterPtr;
+    conn.gater = (Node *)&gater;
     std::visit([&conn](auto &&node) { node.addGate(conn); }, gater);
+    _gates.emplace_back(conn);
   }
 
   void gate(AnyNode &gater,
@@ -320,8 +334,8 @@ protected:
   void gate(const Group &group,
             std::vector<std::reference_wrapper<Connection>> connections,
             GatingPattern pattern) {
-    std::set<const Node *> nodesFrom;
-    std::set<const Node *> nodesTo;
+    VectorSet<const Node *> nodesFrom;
+    VectorSet<const Node *> nodesTo;
     std::set<const Connection *> conns;
     for (auto &conn : connections) {
       conns.insert(&conn.get());
@@ -334,8 +348,7 @@ protected:
     case GatingPattern::Input: {
       size_t idx = 0;
       for (auto node : nodesTo) {
-        idx = idx % gsize;
-        auto &gater = group[idx];
+        auto &gater = group[idx % gsize];
         for (auto &conn : node->connections().inbound) {
           if (conns.count(conn))
             gate(gater, *conn);
@@ -346,9 +359,7 @@ protected:
     case GatingPattern::Output: {
       size_t idx = 0;
       for (auto node : nodesFrom) {
-        idx = idx % gsize;
-        auto &gater = group[idx];
-        idx = idx % gsize;
+        auto &gater = group[idx % gsize];
         for (auto &conn : node->connections().outbound) {
           if (conns.count(conn))
             gate(gater, *conn);
@@ -359,11 +370,9 @@ protected:
     case GatingPattern::Self: {
       size_t idx = 0;
       for (auto node : nodesFrom) {
-        idx = idx % gsize;
-        auto &gater = group[idx];
-        if (conns.count(node->connections().self)) {
+        auto &gater = group[idx % gsize];
+        if (conns.count(node->connections().self))
           gate(gater, *node->connections().self);
-        }
         idx++;
       }
     } break;
@@ -374,6 +383,7 @@ protected:
 
   std::vector<std::reference_wrapper<InputNode>> _inputs;
   std::vector<std::reference_wrapper<AnyNode>> _sortedNodes;
+  std::vector<std::reference_wrapper<Connection>> _gates;
 
   std::list<AnyNode> _nodes;
   std::list<Connection> _connections;
