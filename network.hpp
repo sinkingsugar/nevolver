@@ -54,7 +54,7 @@ public:
       std::visit(
           [this](auto &&node) {
             auto activation = node.activate();
-            if (node.is_output())
+            if (node.isOutput())
               _outputCache.push_back(activation);
           },
           vnode);
@@ -83,7 +83,7 @@ public:
       std::visit(
           [this](auto &&node) {
             auto activation = node.activateFast();
-            if (node.is_output())
+            if (node.isOutput())
               _outputCache.push_back(activation);
           },
           vnode);
@@ -101,7 +101,7 @@ public:
       auto &vnode = (*it).get();
       std::visit(
           [&](auto &&node) {
-            if (node.is_output()) {
+            if (node.isOutput()) {
               outputIdx--;
               node.propagate(rate, momentum, update, targets[outputIdx]);
 #ifdef NEVOLVER_WIDE
@@ -247,11 +247,48 @@ public:
     return _sortedNodes;
   }
 
-  const std::vector<std::reference_wrapper<Connection>> &gates() {
-    return _gates;
+protected:
+  std::list<AnyNode>::iterator remove(std::list<AnyNode>::iterator &nit) {
+    AnyNode &node = *nit;
+    if (node.index() == 0)
+      return ++nit; // don't remove inputs
+
+    const Node *nptr = (Node *)&node;
+
+    if (nptr->isOutput())
+      return ++nit; // don't remove outputs
+
+    // need to remove all connections
+    for (auto &conn : nptr->connections().outbound) {
+      disconnect(*conn);
+    }
+    for (auto &conn : nptr->connections().inbound) {
+      disconnect(*conn);
+    }
+    if (nptr->connections().self) {
+      disconnect(*nptr->connections().self);
+    }
+
+    // gates
+    for (auto &conn : nptr->connections().gate) {
+      ungate(node, *conn);
+    }
+
+    // need to erase from sorted
+    // this will shift ptrs around
+    auto sit = _sortedNodes.begin();
+    while (sit != _sortedNodes.end()) {
+      auto &inode = sit->get();
+      if (&inode == &node) {
+        _sortedNodes.erase(sit);
+        break;
+      }
+      ++sit;
+    }
+
+    return _nodes.erase(nit);
   }
 
-protected:
   Connection &connect(AnyNode &from, AnyNode &to) {
     auto &conn = _connections.emplace_front(
         Connection{(Node *)&from, (Node *)&to, nullptr});
@@ -318,10 +355,70 @@ protected:
     return conns;
   }
 
+  std::list<Connection>::iterator
+  disconnect(std::list<Connection>::iterator &cit) {
+    Connection &conn = *cit;
+    if (conn.from != conn.to) {
+      conn.from->removeOutboundConnection(conn);
+      conn.to->removeInboundConnection(conn);
+    } else {
+      conn.to->removeSelfConnection(conn);
+    }
+    if (conn.gater) {
+      conn.gater->removeGate(conn);
+    }
+    return _connections.erase(cit);
+  }
+
+  void disconnect(Connection &conn) {
+    auto it = _connections.begin();
+    while (it != _connections.end()) {
+      auto &c = *it;
+      if (&c == &conn) {
+        disconnect(it);
+        return;
+      }
+      ++it;
+    }
+  }
+
+  void disconnect(AnyNode &from, AnyNode &to) {
+    auto it = _connections.begin();
+    while (it != _connections.end()) {
+      auto &conn = *it;
+      if (conn.from == (Node *)&from && conn.to == (Node *)&to) {
+        it = disconnect(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  bool isConnected(const Node *from, const Node *to) {
+    auto it = _connections.begin();
+    while (it != _connections.end()) {
+      auto &conn = *it;
+      if (conn.from == from && conn.to == to) {
+        return true;
+      } else {
+        ++it;
+      }
+    }
+    return false;
+  }
+
+  bool isConnected(AnyNode &from, AnyNode &to) {
+    return isConnected((Node *)&from, (Node *)&to);
+  }
+
   void gate(AnyNode &gater, Connection &conn) {
     conn.gater = (Node *)&gater;
     std::visit([&conn](auto &&node) { node.addGate(conn); }, gater);
-    _gates.emplace_back(conn);
+  }
+
+  void ungate(AnyNode &gater, Connection &conn) {
+    conn.gater = nullptr;
+    std::visit([&conn](auto &&node) { node.removeGate(conn); }, gater);
   }
 
   void gate(AnyNode &gater,
@@ -383,7 +480,6 @@ protected:
 
   std::vector<std::reference_wrapper<InputNode>> _inputs;
   std::vector<std::reference_wrapper<AnyNode>> _sortedNodes;
-  std::vector<std::reference_wrapper<Connection>> _gates;
 
   std::list<AnyNode> _nodes;
   std::list<Connection> _connections;

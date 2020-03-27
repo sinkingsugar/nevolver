@@ -1,7 +1,6 @@
 project("chainblocks-tgbot")
 cmake_minimum_required(VERSION 3.14)
 set(CMAKE_CXX_STANDARD 17)
-# add_compile_options(-Wall -march=sandybridge)
 add_compile_options(-Wall -march=sandybridge -ffast-math)
 
 #### Files to format and tidy

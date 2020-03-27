@@ -7,9 +7,9 @@ namespace Nevolver {
 class HiddenNode final : public NodeCommon<HiddenNode> {
 public:
   HiddenNode(bool is_output = false, bool is_constant = false)
-      : _is_output(is_output), _is_constant(is_constant) {}
-
-  bool getIsOutput() const { return _is_output; }
+      : _is_constant(is_constant) {
+    _is_output = is_output;
+  }
 
   NeuroFloat doActivate() {
     _old = _state;
@@ -226,7 +226,6 @@ private:
   NeuroFloat _mask{NeuroFloatOnes};
   NeuroFloat _derivative{NeuroFloatZeros};
   NeuroFloat _previousDeltaBias{NeuroFloatZeros};
-  bool _is_output;
   bool _is_constant;
   std::vector<const Node *> _tmpNodes;
   std::vector<NeuroFloat> _tmpInfluence;

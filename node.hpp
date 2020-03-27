@@ -14,10 +14,56 @@ public:
 
   NeuroFloat responsibility() const { return _responsibility; }
 
+  void addInboundConnection(Connection &conn) const {
+    _connections.inbound.push_back(&conn);
+  }
+
+  void removeInboundConnection(Connection &conn) const {
+    _connections.inbound.erase(
+        std::remove_if(_connections.inbound.begin(), _connections.inbound.end(),
+                       [&](auto &&c) { return c == &conn; }),
+        _connections.inbound.end());
+  }
+
+  void addOutboundConnection(Connection &conn) const {
+    _connections.outbound.push_back(&conn);
+  }
+
+  void removeOutboundConnection(Connection &conn) const {
+    _connections.outbound.erase(
+        std::remove_if(_connections.outbound.begin(),
+                       _connections.outbound.end(),
+                       [&](auto &&c) { return c == &conn; }),
+        _connections.outbound.end());
+  }
+
+  void addSelfConnection(Connection &conn) const {
+    if (_connections.self) {
+      throw std::runtime_error("Node already has a self connection.");
+    }
+    _connections.self = &conn;
+  }
+
+  void removeSelfConnection(Connection &_conn) const {
+    _connections.self = nullptr;
+  }
+
+  void addGate(Connection &conn) const { _connections.gate.push_back(&conn); }
+
+  void removeGate(Connection &conn) const {
+    _connections.gate.erase(
+        std::remove_if(_connections.gate.begin(), _connections.gate.end(),
+                       [&](auto &&c) { return c == &conn; }),
+        _connections.gate.end());
+  }
+
+  bool isOutput() const { return _is_output; }
+
 protected:
   NeuroFloat _activation{NeuroFloatZeros};
   NeuroFloat _responsibility{NeuroFloatZeros};
-  NodeConnections _connections;
+  bool _is_output = false;
+  mutable NodeConnections _connections;
 };
 
 template <typename T> class NodeCommon : public Node {
@@ -30,24 +76,6 @@ public:
                  NeuroFloat target = NeuroFloatZeros) {
     return as_underlying().doPropagate(rate, momentum, update, target);
   }
-
-  void addInboundConnection(Connection &conn) {
-    _connections.inbound.push_back(&conn);
-  }
-  void addOutboundConnection(Connection &conn) {
-    _connections.outbound.push_back(&conn);
-  }
-
-  void addSelfConnection(Connection &conn) {
-    if (_connections.self) {
-      throw std::runtime_error("Node already has a self connection.");
-    }
-    _connections.self = &conn;
-  }
-
-  void addGate(Connection &conn) { _connections.gate.push_back(&conn); }
-
-  bool is_output() const { return as_underlying().getIsOutput(); }
 
   void clear() { as_underlying().doClear(); }
 
@@ -73,8 +101,6 @@ public:
 
   void doPropagate(double rate, double momentum, bool update,
                    NeuroFloat target) {}
-
-  bool getIsOutput() const { return false; }
 
   void doClear() {}
 
