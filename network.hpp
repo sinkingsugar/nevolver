@@ -8,14 +8,13 @@ namespace Nevolver {
 enum NetworkMutations {
   AddNode,
   SubNode,
-  AddConnection,
+  AddFwdConnection,
+  AddBwdConnection,
   SubConnection,
   ShareWeight,
   SwapNodes,
   AddGate,
   SubGate,
-  AddBackConnection,
-  SubBackConnection
 };
 
 template <typename T> class VectorSet : public std::vector<T> {
@@ -139,19 +138,22 @@ public:
                       double network_rate,
                       const std::vector<NodeMutations> &node_pool,
                       double node_rate, double weight_rate) {
-    for (auto &node : _nodes) {
+    for (auto &node : _sortedNodes) {
       for (auto mutation : node_pool) {
         auto chance = Random::nextDouble();
         if (chance < node_rate) {
-          std::visit([mutation](auto &&node) { node.mutate(mutation); }, node);
+          std::visit([mutation](auto &&node) { node.mutate(mutation); },
+                     node.get());
         }
       }
     }
 
     for (auto &weight : _weights) {
-      auto chance = Random::nextDouble();
-      if (chance < weight_rate) {
-        weight.first += Random::normal(0.0, 0.1);
+      if (!weight.second.empty()) {
+        auto chance = Random::nextDouble();
+        if (chance < weight_rate) {
+          weight.first += Random::normal(0.0, 0.1);
+        }
       }
     }
 
@@ -254,7 +256,31 @@ public:
     return _sortedNodes;
   }
 
+  struct Stats {
+    size_t activeNodes;
+    size_t activeConnections;
+    size_t activeWeights;
+    size_t unusedNodes;
+    size_t unusedConnections;
+    size_t unusedWeights;
+  };
+
+  Stats getStats() {
+    Stats stats;
+    stats.activeNodes = _sortedNodes.size();
+    stats.activeConnections = _activeConns.size();
+    stats.activeWeights = (_weights.size() - _unusedWeights.size());
+    stats.unusedNodes = _unusedNodes.size();
+    stats.unusedConnections = _unusedConns.size();
+    stats.unusedWeights = _unusedWeights.size();
+    return stats;
+  }
+
   void printStats() {
+    std::cout << "Active-Nodes: " << _sortedNodes.size() << "\n";
+    std::cout << "Active-Connections: " << _activeConns.size() << "\n";
+    std::cout << "Active-Weights: " << (_weights.size() - _unusedWeights.size())
+              << "\n";
     std::cout << "Unused-Nodes: " << _unusedNodes.size() << "\n";
     std::cout << "Unused-Connections: " << _unusedConns.size() << "\n";
     std::cout << "Unused-Weights: " << _unusedWeights.size() << "\n";
@@ -431,6 +457,22 @@ protected:
     return conns;
   }
 
+  void releaseWeight(const Weight *weight) {
+    if (weight->second.size() == 0) {
+      auto wit = _weights.begin();
+      while (wit != _weights.end()) {
+        auto &w = *wit;
+        if (weight == &w) {
+          auto widx = std::distance(_weights.begin(), wit);
+          _unusedWeights.push_back(widx);
+          break;
+        } else {
+          ++wit;
+        }
+      }
+    }
+  }
+
   template <typename ConnectionsIterator>
   ConnectionsIterator disconnect(ConnectionsIterator &cit) {
     Connection &conn = *cit;
@@ -446,19 +488,7 @@ protected:
     }
 
     conn.weight->second.erase(&conn);
-    if (conn.weight->second.size() == 0) {
-      auto wit = _weights.begin();
-      while (wit != _weights.end()) {
-        auto &w = *wit;
-        if (conn.weight == &w) {
-          auto widx = std::distance(_weights.begin(), wit);
-          _unusedWeights.push_back(widx);
-          break;
-        } else {
-          ++wit;
-        }
-      }
-    }
+    releaseWeight(conn.weight);
 
     // Add storage idx to recycle
     auto idx = std::distance(_connections.begin(), cit);
@@ -591,6 +621,12 @@ protected:
       auto ridx = Random::nextUInt() % _activeConns.size();
       auto &conn = *_activeConns[ridx];
       auto gater = conn.gater;
+
+      // store to node position
+      auto pos =
+          std::find_if(std::begin(_sortedNodes), std::end(_sortedNodes),
+                       [&](auto &&n) { return (Node *)&n.get() == conn.to; });
+
       disconnect(conn);
 
       // make a new node
@@ -609,16 +645,14 @@ protected:
       std::visit([](auto &&n) { n.mutate(NodeMutations::Squash); }, *newNode);
 
       // insert into the network
-      auto pos = std::find_if(std::begin(_sortedNodes), std::end(_sortedNodes),
-                              [&](auto &&n) { return (Node *)&n == conn.to; });
       if (pos != std::end(_sortedNodes)) {
         _sortedNodes.insert(pos, *newNode);
       }
 
       // connect it
       auto &anyFrom = *((AnyNode *)conn.from);
-      auto c1 = connect(anyFrom, *newNode);
-      auto c2 = connect(*newNode, anyTo);
+      auto &c1 = connect(anyFrom, *newNode);
+      auto &c2 = connect(*newNode, anyTo);
       if (gater) {
         if (Random::next() < 0.5) {
           gate(*newNode, c1);
@@ -650,24 +684,141 @@ protected:
       w2->first = Random::normal(0.0, 1.0);
       w2->second.insert(&c2);
     } break;
-    case SubNode:
-      break;
-    case AddConnection:
-      break;
-    case SubConnection:
-      break;
-    case ShareWeight:
-      break;
-    case SwapNodes:
-      break;
-    case AddGate:
-      break;
-    case SubGate:
-      break;
-    case AddBackConnection:
-      break;
-    case SubBackConnection:
-      break;
+    case SubNode: {
+      if (_sortedNodes.size() == 0)
+        return;
+
+      auto nidx = Random::nextUInt() % _sortedNodes.size();
+      auto &node = _sortedNodes[nidx].get();
+
+      // ignore output and input nodes
+      if (node.index() == 0 || ((Node *)&node)->isOutput())
+        return;
+
+      auto nit = _sortedNodes.begin() + nidx;
+      removeNode(nit);
+    } break;
+    case AddFwdConnection:
+    case AddBwdConnection: {
+      // collect possible forward/backward connections
+      // includes self connections too!
+      std::vector<std::pair<std::reference_wrapper<AnyNode>,
+                            std::reference_wrapper<AnyNode>>>
+          _availConns;
+      if (mutation == AddFwdConnection)
+        for (auto fit = _sortedNodes.begin(); fit != _sortedNodes.end();
+             ++fit) {
+          for (auto tit = fit; tit != _sortedNodes.end(); ++tit) {
+            if (!isConnected(*fit, *tit))
+              _availConns.emplace_back(*fit, *tit);
+          }
+        }
+      else
+        for (auto fit = _sortedNodes.rbegin(); fit != _sortedNodes.rend();
+             ++fit) {
+          for (auto tit = fit; tit != _sortedNodes.rend(); ++tit) {
+            if (!isConnected(*fit, *tit))
+              _availConns.emplace_back(*fit, *tit);
+          }
+        }
+
+      if (_availConns.size() == 0)
+        return;
+
+      auto cidx = Random::nextUInt() % _availConns.size();
+      auto &pair = _availConns[cidx];
+      auto &conn = connect(pair.first.get(), pair.second.get());
+
+      // Add new weights
+      Weight *w;
+      if (!_unusedWeights.empty()) {
+        auto widx = _unusedWeights.back();
+        _unusedWeights.pop_back();
+        w = &_weights[widx];
+      } else {
+        w = &_weights.emplace_front();
+      }
+      w->first = Random::normal(0.0, 1.0);
+      w->second.insert(&conn);
+    } break;
+    case SubConnection: {
+      if (_activeConns.size() == 0)
+        return;
+
+      auto ridx = Random::nextUInt() % _activeConns.size();
+      auto &conn = *_activeConns[ridx];
+      disconnect(conn);
+    } break;
+    case ShareWeight: {
+      if (_activeConns.size() < 2)
+        return;
+
+      auto c1idx = Random::nextUInt() % _activeConns.size();
+      auto c2idx = Random::nextUInt() % _activeConns.size();
+      auto &c1 = *_activeConns[c1idx];
+      auto &c2 = *_activeConns[c2idx];
+
+      auto w1 = c1.weight;
+      auto w2 = c2.weight;
+
+      c1.weight = w2;
+
+      w1->second.erase(&c1);
+      releaseWeight(w1);
+    } break;
+    case SwapNodes: {
+      if (_sortedNodes.size() < 2)
+        return;
+
+      auto n1idx = Random::nextUInt() % _sortedNodes.size();
+      auto n2idx = Random::nextUInt() % _sortedNodes.size();
+      auto &n1 = _sortedNodes[n1idx].get();
+      // ignore output and input nodes
+      if (n1.index() == 0 || ((Node *)&n1)->isOutput())
+        return;
+      auto &n2 = _sortedNodes[n2idx].get();
+      // ignore output and input nodes
+      if (n2.index() == 0 || ((Node *)&n2)->isOutput())
+        return;
+
+      auto n1copy = n1;
+      _sortedNodes[n1idx] = _sortedNodes[n2idx];
+      _sortedNodes[n2idx] = n1copy;
+    } break;
+    case AddGate: {
+      std::vector<Connection *> _nonGated;
+      for (auto conn : _activeConns) {
+        if (!conn->gater)
+          _nonGated.emplace_back(conn);
+      }
+
+      if (_nonGated.size() == 0)
+        return;
+
+      auto nidx = Random::nextUInt() % _sortedNodes.size();
+      auto &node = _sortedNodes[nidx].get();
+      // ignore input nodes
+      if (node.index() == 0)
+        return;
+
+      auto ridx = Random::nextUInt() % _nonGated.size();
+      auto &conn = *_nonGated[ridx];
+      gate(node, conn);
+    } break;
+    case SubGate: {
+      std::vector<Connection *> _gated;
+      for (auto conn : _activeConns) {
+        if (conn->gater)
+          _gated.emplace_back(conn);
+      }
+
+      if (_gated.size() == 0)
+        return;
+
+      auto ridx = Random::nextUInt() % _gated.size();
+      auto &conn = *_gated[ridx];
+      ungate(*((AnyNode *)conn.gater), conn);
+    } break;
     }
   }
 
