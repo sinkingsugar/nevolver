@@ -354,17 +354,29 @@ protected:
   }
 
   Connection &connect(AnyNode &from, AnyNode &to) {
-    auto &conn = _connections.emplace_front(
-        Connection{(Node *)&from, (Node *)&to, nullptr});
+    Connection *conn;
+
+    if (!_unusedConns.empty()) {
+      auto cidx = _unusedConns.back();
+      _unusedConns.pop_back();
+      conn = &_connections[cidx];
+    } else {
+      conn = &_connections.emplace_front();
+    }
+    conn->from = (Node *)&from;
+    conn->to = (Node *)&to;
+    conn->gater = nullptr;
+
+    _activeConns.emplace_back(conn);
 
     if (&from == &to) {
-      std::visit([&](auto &&node) { node.addSelfConnection(conn); }, to);
+      std::visit([&](auto &&node) { node.addSelfConnection(*conn); }, to);
     } else {
-      std::visit([&](auto &&node) { node.addOutboundConnection(conn); }, from);
-      std::visit([&](auto &&node) { node.addInboundConnection(conn); }, to);
+      std::visit([&](auto &&node) { node.addOutboundConnection(*conn); }, from);
+      std::visit([&](auto &&node) { node.addInboundConnection(*conn); }, to);
     }
 
-    return conn;
+    return *conn;
   }
 
   std::vector<std::reference_wrapper<Connection>> connect(const Group &from,
@@ -448,8 +460,17 @@ protected:
       }
     }
 
+    // Add storage idx to recycle
     auto idx = std::distance(_connections.begin(), cit);
     _unusedConns.push_back(idx);
+
+    // quick remove from active conns too
+    auto pos =
+        std::find(std::begin(_activeConns), std::end(_activeConns), &conn);
+    if (pos != std::end(_activeConns)) {
+      *pos = std::move(_activeConns.back());
+      _activeConns.pop_back();
+    }
 
     return ++cit;
   }
@@ -560,10 +581,99 @@ protected:
     }
   }
 
-  void doMutation(NetworkMutations mutation) {}
+  void doMutation(NetworkMutations mutation) {
+    switch (mutation) {
+    case AddNode: {
+      if (_activeConns.size() == 0)
+        return;
+
+      // Add a node by inserting it in the middle of a connection
+      auto ridx = Random::nextUInt() % _activeConns.size();
+      auto &conn = *_activeConns[ridx];
+      auto gater = conn.gater;
+      disconnect(conn);
+
+      // make a new node
+      AnyNode *newNode;
+      if (!_unusedNodes.empty()) {
+        auto nidx = _unusedNodes.back();
+        _unusedNodes.pop_back();
+        newNode = &_nodes[nidx];
+      } else {
+        newNode = &_nodes.emplace_front();
+      }
+
+      // init and mutate new node
+      auto &anyTo = *((AnyNode *)conn.to);
+      *newNode = std::visit([](auto &&n) { return AnyNode(n.clone()); }, anyTo);
+      std::visit([](auto &&n) { n.mutate(NodeMutations::Squash); }, *newNode);
+
+      // insert into the network
+      auto pos = std::find_if(std::begin(_sortedNodes), std::end(_sortedNodes),
+                              [&](auto &&n) { return (Node *)&n == conn.to; });
+      if (pos != std::end(_sortedNodes)) {
+        _sortedNodes.insert(pos, *newNode);
+      }
+
+      // connect it
+      auto &anyFrom = *((AnyNode *)conn.from);
+      auto c1 = connect(anyFrom, *newNode);
+      auto c2 = connect(*newNode, anyTo);
+      if (gater) {
+        if (Random::next() < 0.5) {
+          gate(*newNode, c1);
+        } else {
+          gate(*newNode, c2);
+        }
+      }
+
+      // Add new weights
+      Weight *w1;
+      if (!_unusedWeights.empty()) {
+        auto widx = _unusedWeights.back();
+        _unusedWeights.pop_back();
+        w1 = &_weights[widx];
+      } else {
+        w1 = &_weights.emplace_front();
+      }
+      w1->first = Random::normal(0.0, 1.0);
+      w1->second.insert(&c1);
+
+      Weight *w2;
+      if (!_unusedWeights.empty()) {
+        auto widx = _unusedWeights.back();
+        _unusedWeights.pop_back();
+        w2 = &_weights[widx];
+      } else {
+        w2 = &_weights.emplace_front();
+      }
+      w2->first = Random::normal(0.0, 1.0);
+      w2->second.insert(&c2);
+    } break;
+    case SubNode:
+      break;
+    case AddConnection:
+      break;
+    case SubConnection:
+      break;
+    case ShareWeight:
+      break;
+    case SwapNodes:
+      break;
+    case AddGate:
+      break;
+    case SubGate:
+      break;
+    case AddBackConnection:
+      break;
+    case SubBackConnection:
+      break;
+    }
+  }
 
   std::vector<std::reference_wrapper<InputNode>> _inputs;
   std::vector<std::reference_wrapper<AnyNode>> _sortedNodes;
+  std::vector<Connection *> _activeConns;
 
   std::deque<AnyNode> _nodes;
   std::deque<Connection> _connections;

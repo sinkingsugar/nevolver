@@ -188,6 +188,11 @@ int main() {
 
     std::cout << "NNodes: " << lstm.nodes().size() << "\n";
     lstm.printStats();
+
+    lstm.mutate({Nevolver::NetworkMutations::AddNode}, 1.0, {}, 0.0, 0.0);
+
+    std::cout << "NNodes: " << lstm.nodes().size() << "\n";
+    lstm.printStats();
   }
   {
     auto perceptron = Nevolver::NARX(2, {4, 2}, 1, 4, 4);

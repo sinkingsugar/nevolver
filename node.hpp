@@ -81,6 +81,16 @@ public:
 
   void mutate(NodeMutations mutation) { as_underlying().doMutate(mutation); }
 
+  T clone() {
+    // clone this but without any connection and such
+    T res = as_underlying();
+    res._connections.inbound.clear();
+    res._connections.outbound.clear();
+    res._connections.gate.clear();
+    res._connections.self = nullptr;
+    return res;
+  }
+
 protected:
   friend T;
 
