@@ -14,6 +14,7 @@ public:
     Group inputNodes;
     for (int i = 0; i < inputs; i++) {
       auto &node = _nodes.emplace_front(InputNode());
+      _sortedNodes.emplace_back(node);
       _inputs.emplace_back(std::get<InputNode>(node));
       inputNodes.emplace_back(node);
     }

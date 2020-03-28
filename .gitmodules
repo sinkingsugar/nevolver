@@ -1,3 +1,6 @@
 [submodule "ceral"]
 	path = deps/cereal
 	url = https://github.com/chainblocks/cereal.git
+[submodule "easyloggingpp"]
+	path = deps/easyloggingpp
+	url = https://github.com/nevolver/easyloggingpp.git

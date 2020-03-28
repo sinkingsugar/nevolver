@@ -6,9 +6,12 @@
 #include <deque>
 #include <functional>
 #include <iostream>
+#include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -22,6 +25,7 @@
 #include <cereal/types/functional.hpp>
 #include <cereal/types/variant.hpp>
 #include <cereal/types/vector.hpp>
+#include <easylogging++.h>
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)

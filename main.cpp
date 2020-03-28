@@ -6,6 +6,8 @@
 #include <iomanip> // std::setprecision
 #include <iostream>
 
+INITIALIZE_EASYLOGGINGPP
+
 namespace Nevolver {} // namespace Nevolver
 
 int main() {
@@ -176,6 +178,15 @@ int main() {
      0.8661533781635797 (1.0)
     */
 
+    std::cout << "LSTM-Stats:\n";
+    lstm.printStats();
+    auto narx = Nevolver::NARX(2, {4, 3}, 1, 3, 3);
+    std::cout << "NARX-Stats:\n";
+    narx.printStats();
+    auto childLstm = Nevolver::Network::crossover(lstm, narx);
+    std::cout << "LSTM+NARX-Child-Stats:\n";
+    childLstm.printStats();
+
     std::cout << "NNodes: " << lstm.nodes().size() << "\n";
     std::cout << "NConns: " << lstm.connections().size() << "\n";
     std::cout << "NWeights: " << lstm.weights().size() << "\n";
@@ -193,6 +204,9 @@ int main() {
 
     std::cout << "NNodes: " << lstm.nodes().size() << "\n";
     lstm.printStats();
+
+    childLstm = Nevolver::Network::crossover(lstm, narx);
+    childLstm.printStats();
   }
   {
     auto perceptron = Nevolver::NARX(2, {4, 2}, 1, 4, 4);

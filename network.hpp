@@ -2,7 +2,6 @@
 #define NETWORK_H
 
 #include "nevolver.hpp"
-#include <unordered_map>
 
 namespace Nevolver {
 enum NetworkMutations {
@@ -165,8 +164,159 @@ public:
     }
   }
 
+  // https://en.wikipedia.org/wiki/Pairing_function
+  static uint64_t pairing(uint64_t a, uint64_t b) {
+    return uint64_t(((1.0 / 2.0) * (double(a) + double(b)) *
+                     (double(a) + double(b) + 1.0)) +
+                    double(b));
+  }
+
   static Network crossover(const Network &net1, const Network &net2) {
     Network res{};
+    // try to keep some statistic to see if crossover is worth it
+    res._crossoverScore =
+        1 + pairing(net1._crossoverScore, net2._crossoverScore);
+
+    auto n1inputs = net1._inputs.size();
+    auto n2inputs = net2._inputs.size();
+    auto n1outputs = std::count_if(
+        net1._sortedNodes.begin(), net1._sortedNodes.end(), [](auto &&n) {
+          return std::visit([](auto &&n) { return n.isOutput(); }, n.get());
+        });
+    auto n2outputs = std::count_if(
+        net2._sortedNodes.begin(), net2._sortedNodes.end(), [](auto &&n) {
+          return std::visit([](auto &&n) { return n.isOutput(); }, n.get());
+        });
+
+    if (n1inputs != n2inputs || n1outputs != n2outputs)
+      throw std::runtime_error("Attempted crossover between networks with "
+                               "different input/output sizes.");
+
+    // parents are picked randomly already
+    // no need to overengineer the `==` case
+    auto newLen = net1._fitness > net2._fitness ? net1._sortedNodes.size()
+                                                : net2._sortedNodes.size();
+
+    auto &mainnet = net1._fitness > net2._fitness ? net1 : net2;
+    for (size_t i = 0; i < newLen; i++) {
+      auto &mainnode = mainnet._sortedNodes[i].get();
+      auto &newNode = res._nodes.emplace_front();
+      res._sortedNodes.emplace_back(newNode);
+      if (mainnode.index() == 0 ||
+          std::visit([](auto &&n) { return n.isOutput(); }, mainnode)) {
+        // if input or output use main as it's the closest architecture
+        newNode =
+            std::visit([](auto &&n) { return AnyNode(n.clone()); }, mainnode);
+        if (mainnode.index() == 0)
+          res._inputs.emplace_back(std::get<InputNode>(newNode));
+      } else {
+        auto &parent = Random::nextDouble() < 0.5 ? net1 : net2;
+        auto &node = i < parent._sortedNodes.size()
+                         ? parent._sortedNodes[i].get()
+                         : mainnet._sortedNodes[i].get();
+
+        // input and outputs are already dealt with
+        if (node.index() == 0 ||
+            std::visit([](auto &&n) { return n.isOutput(); }, node)) {
+          // fall back to mainnode
+          newNode =
+              std::visit([](auto &&n) { return AnyNode(n.clone()); }, mainnode);
+        } else {
+          newNode =
+              std::visit([](auto &&n) { return AnyNode(n.clone()); }, node);
+        }
+      }
+    }
+
+    // so we do all this to find shared connections
+    // in order to give priority
+    // shared as in topology
+
+    struct ConnData {
+      const Connection *conn;
+      size_t fidx;
+      size_t tidx;
+      size_t gidx;
+    };
+
+    std::vector<ConnData> connections;
+
+    {
+      std::map<uint64_t, ConnData> conns1;
+      std::map<uint64_t, ConnData> conns2;
+      {
+        std::unordered_map<const Node *, uint64_t> nodeMap1;
+        uint64_t idx = 0;
+        for (auto &node : net1._sortedNodes) {
+          nodeMap1.emplace((Node *)&node.get(), idx);
+          idx++;
+        }
+
+        std::unordered_map<const Node *, uint64_t> nodeMap2;
+        idx = 0;
+        for (auto &node : net2._sortedNodes) {
+          nodeMap2.emplace((Node *)&node.get(), idx);
+          idx++;
+        }
+
+        for (auto &conn : net1._activeConns) {
+          auto fidx = nodeMap1[conn->from];
+          auto tidx = nodeMap1[conn->to];
+          auto gidx = conn->gater ? nodeMap1[conn->gater] : 0;
+          auto id = pairing(fidx, tidx);
+          auto [_, added] =
+              conns1.emplace(id, ConnData{conn, fidx, tidx, gidx});
+          assert(added); // likely there is a bug somewhere
+        }
+
+        for (auto &conn : net2._activeConns) {
+          auto fidx = nodeMap2[conn->from];
+          auto tidx = nodeMap2[conn->to];
+          auto gidx = conn->gater ? nodeMap1[conn->gater] : 0;
+          auto id = pairing(fidx, tidx);
+          auto [_, added] =
+              conns2.emplace(id, ConnData{conn, fidx, tidx, gidx});
+          assert(added); // likely there is a bug somewhere
+        }
+      }
+
+      auto &primary = net1._fitness > net2._fitness ? conns1 : conns2;
+      auto &secondary = net1._fitness > net2._fitness ? conns2 : conns1;
+      for (auto [k, v] : primary) {
+        auto sit = secondary.find(k);
+        if (sit != secondary.end()) {
+          // this connection is shared
+          // so we can pick from the other net
+          if (Random::nextDouble() < 0.5) {
+            connections.emplace_back(v);
+            auto &w = res._weights.emplace_back(*v.conn->weight);
+            w.second.clear();
+          } else {
+            connections.emplace_back(sit->second);
+            auto &w = res._weights.emplace_back(*sit->second.conn->weight);
+            w.second.clear();
+          }
+        } else {
+          // let the strongest win if not shared
+          connections.emplace_back(v);
+          auto &w = res._weights.emplace_back(*v.conn->weight);
+          w.second.clear();
+        }
+      }
+    }
+
+    auto widx = 0;
+    for (auto &conn : connections) {
+      auto &nc = res.connect(res._sortedNodes[conn.fidx].get(),
+                             res._sortedNodes[conn.tidx].get());
+      if (conn.conn->gater) {
+        res.gate(res._sortedNodes[conn.gidx].get(), nc);
+      }
+      nc.weight = &res._weights[widx];
+      res._weights[widx].second.insert(&nc);
+      widx++;
+    }
+
     return res;
   }
 
@@ -263,6 +413,7 @@ public:
     size_t unusedNodes;
     size_t unusedConnections;
     size_t unusedWeights;
+    uint64_t crossoverScore;
   };
 
   Stats getStats() {
@@ -273,6 +424,7 @@ public:
     stats.unusedNodes = _unusedNodes.size();
     stats.unusedConnections = _unusedConns.size();
     stats.unusedWeights = _unusedWeights.size();
+    stats.crossoverScore = _crossoverScore;
     return stats;
   }
 
@@ -643,6 +795,7 @@ protected:
       auto &anyTo = *((AnyNode *)conn.to);
       *newNode = std::visit([](auto &&n) { return AnyNode(n.clone()); }, anyTo);
       std::visit([](auto &&n) { n.mutate(NodeMutations::Squash); }, *newNode);
+      std::visit([](auto &&n) { n.setOutput(false); }, *newNode);
 
       // insert into the network
       if (pos != std::end(_sortedNodes)) {
@@ -654,7 +807,7 @@ protected:
       auto &c1 = connect(anyFrom, *newNode);
       auto &c2 = connect(*newNode, anyTo);
       if (gater) {
-        if (Random::next() < 0.5) {
+        if (Random::nextDouble() < 0.5) {
           gate(*newNode, c1);
         } else {
           gate(*newNode, c2);
@@ -843,6 +996,10 @@ private:
   std::vector<NeuroFloat> _wideInputs;
 #endif
   std::vector<NeuroFloat> _outputCache;
+
+  uint64_t _crossoverScore = 0;
+
+  double _fitness = std::numeric_limits<double>::min();
 };
 } // namespace Nevolver
 

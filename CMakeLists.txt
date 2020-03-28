@@ -26,6 +26,7 @@ set(
   MY_PROJECT_HEADER_PATHS
   ${MY_PROJECT_HEADER_PATHS}
   -I${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
+  -I${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
   )
 
 ### setup clang format
@@ -86,9 +87,11 @@ endif()
 
 include_directories(
   ${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
+  ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
   )
 
 add_executable(
   nevolver
+  ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src/easylogging++.cc
   main.cpp
   )

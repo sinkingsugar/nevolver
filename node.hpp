@@ -59,6 +59,8 @@ public:
 
   bool isOutput() const { return _is_output; }
 
+  void setOutput(bool output) { _is_output = output; }
+
 protected:
   NeuroFloat _activation{NeuroFloatZeros};
   NeuroFloat _responsibility{NeuroFloatZeros};
