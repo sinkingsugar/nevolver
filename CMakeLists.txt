@@ -176,4 +176,4 @@ add_library(cbnevolver SHARED
   ${CMAKE_CURRENT_LIST_DIR}/chainblocks/blocks.cpp)
 
 target_compile_options(cbnevolver PUBLIC
-  -fPIC -fvisibility=hidden)
+  -fvisibility=hidden)
