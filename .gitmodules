@@ -7,3 +7,6 @@
 [submodule "Catch2"]
 	path = deps/Catch2
 	url = https://github.com/catchorg/Catch2.git
+[submodule "chainblocks"]
+	path = deps/chainblocks
+	url = https://github.com/sinkingsugar/chainblocks.git
