@@ -654,7 +654,7 @@ protected:
     auto pos =
         std::find(std::begin(_activeConns), std::end(_activeConns), &conn);
     if (pos != std::end(_activeConns)) {
-      *pos = std::move(_activeConns.back());
+      *pos = _activeConns.back();
       _activeConns.pop_back();
     }
 
@@ -712,15 +712,16 @@ protected:
     std::visit([&conn](auto &&node) { node.removeGate(conn); }, gater);
   }
 
-  void gate(AnyNode &gater,
-            std::vector<std::reference_wrapper<Connection>> connections) {
+  void
+  gate(AnyNode &gater,
+       const std::vector<std::reference_wrapper<Connection>> &connections) {
     for (auto &conn : connections) {
       gate(gater, conn);
     }
   }
 
   void gate(const Group &group,
-            std::vector<std::reference_wrapper<Connection>> connections,
+            const std::vector<std::reference_wrapper<Connection>> &connections,
             GatingPattern pattern) {
     VectorSet<const Node *> nodesFrom;
     VectorSet<const Node *> nodesTo;

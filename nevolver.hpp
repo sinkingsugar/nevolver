@@ -4,14 +4,10 @@
 #include "random.hpp"
 #include <cassert>
 #include <deque>
-#include <functional>
 #include <iostream>
 #include <limits>
 #include <map>
-#include <memory>
-#include <optional>
 #include <ostream>
-#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>

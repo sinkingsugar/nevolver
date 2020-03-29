@@ -1,6 +1,7 @@
 #ifndef NODE_H
 #define NODE_H
 
+#include "connections.hpp"
 #include "nevolver.hpp"
 
 namespace Nevolver {
