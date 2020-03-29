@@ -1,0 +1,101 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  ciLinuxDbg:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build
+      run: |
+        git submodule update --init --recursive
+        docker build -f docker/linux/Dockerfile -t chainblocks-test --build-arg USER_ID=`id -u` --build-arg GROUP_ID=`id -g` --build-arg JOB_ID=$CI_JOB_ID .
+    - name: Test
+      run: |
+        docker run --rm -t --cap-add=SYS_PTRACE -u`id -u`:`id -g` chainblocks-test bash -c "mkdir build && cd build && cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug .. && ninja nevolver && ./nevolver"
+
+  ciLinuxRel:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build
+      run: |
+        git submodule update --init --recursive
+        docker build -f docker/linux/Dockerfile -t chainblocks-test --build-arg USER_ID=`id -u` --build-arg GROUP_ID=`id -g` --build-arg JOB_ID=$CI_JOB_ID .
+    - name: Test
+      run: |
+        docker run --rm -t --cap-add=SYS_PTRACE -u`id -u`:`id -g` chainblocks-test bash -c "mkdir build && cd build && cmake -G Ninja -DCMAKE_BUILD_TYPE=Release .. && ninja nevolver && ./nevolver"
+
+  ciLinuxValgrind:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build
+      run: |
+        git submodule update --init --recursive
+        docker build -f docker/linux/Dockerfile -t chainblocks-test --build-arg USER_ID=`id -u` --build-arg GROUP_ID=`id -g` --build-arg JOB_ID=$CI_JOB_ID .
+    - name: Test
+      run: |
+        docker run --rm -t --cap-add=SYS_PTRACE -u`id -u`:`id -g` chainblocks-test bash -c "mkdir build && cd build && cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && ninja nevolver && valgrind ./nevolver"
+
+
+  ciMacDbg:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Deps
+      run: |
+        sudo xcode-select --switch /Applications/Xcode_11.app
+        brew install boost cmake ninja clang-format
+    - name: Build
+      run: |
+        git submodule update --init --recursive
+        mkdir build
+        cd build
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ..
+        ninja nevolver
+    - name: Test
+      run: |
+        cd build
+        ./nevolver
+
+  ciMacRel:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Deps
+      run: |
+        sudo xcode-select --switch /Applications/Xcode_11.app
+        brew install boost cmake ninja clang-format
+    - name: Build
+      run: |
+        git submodule update --init --recursive
+        mkdir build
+        cd build
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+        ninja nevolver
+    - name: Test
+      run: |
+        cd build
+        ./nevolver
+
+  ciMacAsan:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Deps
+      run: |
+        sudo xcode-select --switch /Applications/Xcode_11.app
+        brew install boost cmake ninja clang-format
+    - name: Build
+      run: |
+        git submodule update --init --recursive
+        mkdir build
+        cd build
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=asan ..
+        ninja nevolver
+    - name: Test
+      run: |
+        cd build
+        ./nevolver

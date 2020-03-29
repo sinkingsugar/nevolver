@@ -36,6 +36,7 @@ public:
     for (int i = 0; i < outputs; i++) {
       auto &node = _nodes.emplace_front(HiddenNode(true));
       _sortedNodes.emplace_back(node); // insertion order!
+      _outputs.emplace_back(node);
       outputNodes.emplace_back(node);
     }
 

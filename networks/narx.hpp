@@ -78,6 +78,7 @@ public:
     Group outputNodes;
     for (int i = 0; i < outputs; i++) {
       auto &node = _nodes.emplace_front(HiddenNode(true));
+      _outputs.emplace_back(node);
       _sortedNodes.emplace_back(node);
       outputNodes.emplace_back(node);
     }

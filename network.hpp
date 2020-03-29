@@ -4,7 +4,7 @@
 #include "nevolver.hpp"
 
 namespace Nevolver {
-enum NetworkMutations {
+enum class NetworkMutations {
   AddNode,
   SubNode,
   AddFwdConnection,
@@ -179,14 +179,8 @@ public:
 
     auto n1inputs = net1._inputs.size();
     auto n2inputs = net2._inputs.size();
-    auto n1outputs = std::count_if(
-        net1._sortedNodes.begin(), net1._sortedNodes.end(), [](auto &&n) {
-          return std::visit([](auto &&n) { return n.isOutput(); }, n.get());
-        });
-    auto n2outputs = std::count_if(
-        net2._sortedNodes.begin(), net2._sortedNodes.end(), [](auto &&n) {
-          return std::visit([](auto &&n) { return n.isOutput(); }, n.get());
-        });
+    auto n1outputs = net1._outputs.size();
+    auto n2outputs = net2._outputs.size();
 
     if (n1inputs != n2inputs || n1outputs != n2outputs)
       throw std::runtime_error("Attempted crossover between networks with "
@@ -200,15 +194,18 @@ public:
     auto &mainnet = net1._fitness > net2._fitness ? net1 : net2;
     for (size_t i = 0; i < newLen; i++) {
       auto &mainnode = mainnet._sortedNodes[i].get();
+      auto mainIsOutput =
+          std::visit([](auto &&n) { return n.isOutput(); }, mainnode);
       auto &newNode = res._nodes.emplace_front();
       res._sortedNodes.emplace_back(newNode);
-      if (mainnode.index() == 0 ||
-          std::visit([](auto &&n) { return n.isOutput(); }, mainnode)) {
+      if (mainnode.index() == 0 || mainIsOutput) {
         // if input or output use main as it's the closest architecture
         newNode =
             std::visit([](auto &&n) { return AnyNode(n.clone()); }, mainnode);
         if (mainnode.index() == 0)
           res._inputs.emplace_back(std::get<InputNode>(newNode));
+        if (mainIsOutput)
+          res._outputs.emplace_back(newNode);
       } else {
         auto &parent = Random::nextDouble() < 0.5 ? net1 : net2;
         auto &node = i < parent._sortedNodes.size()
@@ -367,6 +364,9 @@ public:
     for (auto &node : nodes) {
       auto &nref = _nodes.emplace_front(node);
       _sortedNodes.emplace_back(nref);
+      if (((Node *)&nref)->isOutput()) {
+        _outputs.emplace_back(nref);
+      }
     }
 
     for (auto &conn : conns) {
@@ -769,7 +769,7 @@ protected:
 
   void doMutation(NetworkMutations mutation) {
     switch (mutation) {
-    case AddNode: {
+    case NetworkMutations::AddNode: {
       if (_activeConns.size() == 0)
         return;
 
@@ -845,28 +845,31 @@ protected:
       w2->first = Random::normal(0.0, 1.0);
       w2->second.insert(&c2);
     } break;
-    case SubNode: {
-      if (_sortedNodes.size() == 0)
+    case NetworkMutations::SubNode: {
+      auto nin = _inputs.size();
+      auto nout = _outputs.size();
+      auto ntot = _sortedNodes.size();
+      if (ntot - (nin + nout) == 0)
         return;
 
-      auto nidx = Random::nextUInt() % _sortedNodes.size();
-      auto &node = _sortedNodes[nidx].get();
-
-      // ignore output and input nodes
-      if (node.index() == 0 || ((Node *)&node)->isOutput())
-        return;
+      size_t nidx = 0;
+      do {
+        nidx = Random::nextUInt() % _sortedNodes.size();
+      } while (_sortedNodes[nidx].get().index() == 0 ||
+               std::visit([](auto &&n) { return n.isOutput(); },
+                          _sortedNodes[nidx].get()));
 
       auto nit = _sortedNodes.begin() + nidx;
       removeNode(nit);
     } break;
-    case AddFwdConnection:
-    case AddBwdConnection: {
+    case NetworkMutations::AddFwdConnection:
+    case NetworkMutations::AddBwdConnection: {
       // collect possible forward/backward connections
       // includes self connections too!
       std::vector<std::pair<std::reference_wrapper<AnyNode>,
                             std::reference_wrapper<AnyNode>>>
           _availConns;
-      if (mutation == AddFwdConnection)
+      if (mutation == NetworkMutations::AddFwdConnection)
         for (auto fit = _sortedNodes.begin(); fit != _sortedNodes.end();
              ++fit) {
           for (auto tit = fit; tit != _sortedNodes.end(); ++tit) {
@@ -902,7 +905,7 @@ protected:
       w->first = Random::normal(0.0, 1.0);
       w->second.insert(&conn);
     } break;
-    case SubConnection: {
+    case NetworkMutations::SubConnection: {
       if (_activeConns.size() == 0)
         return;
 
@@ -910,7 +913,7 @@ protected:
       auto &conn = *_activeConns[ridx];
       disconnect(conn);
     } break;
-    case ShareWeight: {
+    case NetworkMutations::ShareWeight: {
       if (_activeConns.size() < 2)
         return;
 
@@ -927,26 +930,32 @@ protected:
       w1->second.erase(&c1);
       releaseWeight(w1);
     } break;
-    case SwapNodes: {
-      if (_sortedNodes.size() < 2)
+    case NetworkMutations::SwapNodes: {
+      auto nin = _inputs.size();
+      auto nout = _outputs.size();
+      auto ntot = _sortedNodes.size();
+      if (ntot - (nin + nout) < 2)
         return;
 
-      auto n1idx = Random::nextUInt() % _sortedNodes.size();
-      auto n2idx = Random::nextUInt() % _sortedNodes.size();
-      auto &n1 = _sortedNodes[n1idx].get();
-      // ignore output and input nodes
-      if (n1.index() == 0 || ((Node *)&n1)->isOutput())
-        return;
-      auto &n2 = _sortedNodes[n2idx].get();
-      // ignore output and input nodes
-      if (n2.index() == 0 || ((Node *)&n2)->isOutput())
-        return;
+      size_t n1idx = 0;
+      do {
+        n1idx = Random::nextUInt() % _sortedNodes.size();
+      } while (_sortedNodes[n1idx].get().index() == 0 ||
+               std::visit([](auto &&n) { return n.isOutput(); },
+                          _sortedNodes[n1idx].get()));
 
-      auto n1copy = n1;
+      size_t n2idx = 0;
+      do {
+        n2idx = Random::nextUInt() % _sortedNodes.size();
+      } while (_sortedNodes[n2idx].get().index() == 0 ||
+               std::visit([](auto &&n) { return n.isOutput(); },
+                          _sortedNodes[n2idx].get()));
+
+      auto n1copy = _sortedNodes[n1idx].get();
       _sortedNodes[n1idx] = _sortedNodes[n2idx];
       _sortedNodes[n2idx] = n1copy;
     } break;
-    case AddGate: {
+    case NetworkMutations::AddGate: {
       std::vector<Connection *> _nonGated;
       for (auto conn : _activeConns) {
         if (!conn->gater)
@@ -966,7 +975,7 @@ protected:
       auto &conn = *_nonGated[ridx];
       gate(node, conn);
     } break;
-    case SubGate: {
+    case NetworkMutations::SubGate: {
       std::vector<Connection *> _gated;
       for (auto conn : _activeConns) {
         if (conn->gater)
@@ -984,6 +993,7 @@ protected:
   }
 
   std::vector<std::reference_wrapper<InputNode>> _inputs;
+  std::vector<std::reference_wrapper<AnyNode>> _outputs;
   std::vector<std::reference_wrapper<AnyNode>> _sortedNodes;
   std::vector<Connection *> _activeConns;
 

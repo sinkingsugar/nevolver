@@ -174,6 +174,43 @@ TEST_CASE("LSTM test vectors", "[lstmv]") {
   REQUIRE(stats.unusedConnections == 151);
   REQUIRE(stats.unusedWeights == 151);
 
+  lstm.mutate({Nevolver::NetworkMutations::AddFwdConnection,
+               Nevolver::NetworkMutations::AddBwdConnection},
+              1.0, {}, 0.0, 0.0);
+
+  stats = lstm.getStats();
+  REQUIRE(stats.activeNodes == 4);
+  REQUIRE(stats.activeConnections == 5);
+  REQUIRE(stats.activeWeights == 5);
+  REQUIRE(stats.unusedNodes == 27);
+  REQUIRE(stats.unusedConnections == 149);
+  REQUIRE(stats.unusedWeights == 149);
+
+  lstm.mutate({Nevolver::NetworkMutations::SubNode,
+               Nevolver::NetworkMutations::AddNode},
+              1.0, {}, 0.0, 0.0);
+
+  stats = lstm.getStats();
+  REQUIRE(stats.activeNodes == 4);
+  REQUIRE(stats.activeConnections == 4);
+  REQUIRE(stats.activeWeights == 4);
+  REQUIRE(stats.unusedNodes == 27);
+  REQUIRE(stats.unusedConnections == 150);
+  REQUIRE(stats.unusedWeights == 150);
+
+  lstm.mutate({Nevolver::NetworkMutations::SubConnection,
+               Nevolver::NetworkMutations::ShareWeight,
+               Nevolver::NetworkMutations::SwapNodes},
+              1.0, {}, 0.0, 0.0);
+
+  stats = lstm.getStats();
+  REQUIRE(stats.activeNodes == 4);
+  REQUIRE(stats.activeConnections == 3);
+  REQUIRE(stats.activeWeights == 2);
+  REQUIRE(stats.unusedNodes == 27);
+  REQUIRE(stats.unusedConnections == 151);
+  REQUIRE(stats.unusedWeights == 152);
+
   childLstm = Nevolver::Network::crossover(lstm, narx);
   stats = childLstm.getStats();
   REQUIRE(stats.activeNodes == 19);
