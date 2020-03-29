@@ -1,7 +1,7 @@
 #include "../network.hpp"
 #include "../networks/lstm.hpp"
+#include "../networks/mlp.hpp"
 #include "../networks/narx.hpp"
-#include "../networks/perceptron.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -10,8 +10,8 @@
 
 INITIALIZE_EASYLOGGINGPP
 
-TEST_CASE("Perceptron SGD training and serialize", "[perceptron1]") {
-  auto perceptron = Nevolver::Perceptron(2, {4, 4}, 1);
+TEST_CASE("MLP SGD training and serialize", "[perceptron1]") {
+  auto perceptron = Nevolver::MLP(2, {4, 4}, 1);
   for (auto i = 0; i < 50000; i++) {
     perceptron.activate({0.0, 0.0});
     perceptron.propagate({1.0});
@@ -47,8 +47,8 @@ TEST_CASE("Perceptron SGD training and serialize", "[perceptron1]") {
   }
 }
 
-TEST_CASE("Perceptron test vectors", "[perceptronv]") {
-  auto perceptron = Nevolver::Perceptron(2, {4, 3}, 1);
+TEST_CASE("MLP test vectors", "[perceptronv]") {
+  auto perceptron = Nevolver::MLP(2, {4, 3}, 1);
 
   for (auto &w : perceptron.weights()) {
     w.first = 0.3;

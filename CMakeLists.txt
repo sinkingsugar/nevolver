@@ -74,7 +74,7 @@ set(
   ${CMAKE_CURRENT_LIST_DIR}/node.hpp
   ${CMAKE_CURRENT_LIST_DIR}/nodes/annhidden.hpp
   ${CMAKE_CURRENT_LIST_DIR}/network.hpp
-  ${CMAKE_CURRENT_LIST_DIR}/networks/perceptron.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/networks/mlp.hpp
   ${CMAKE_CURRENT_LIST_DIR}/networks/narx.hpp
   ${CMAKE_CURRENT_LIST_DIR}/networks/lstm.hpp
   ${CMAKE_CURRENT_LIST_DIR}/chainblocks/blocks.cpp
@@ -175,5 +175,7 @@ add_library(cbnevolver SHARED
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src/easylogging++.cc
   ${CMAKE_CURRENT_LIST_DIR}/chainblocks/blocks.cpp)
 
+if(UNIX)
 target_compile_options(cbnevolver PUBLIC
   -fvisibility=hidden)
+endif()
