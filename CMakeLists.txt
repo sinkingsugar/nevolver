@@ -8,7 +8,7 @@ set(
   MY_PROJECT_SOURCE_FILES
   ${MY_PROJECT_SOURCE_FILES}
   ${CMAKE_CURRENT_LIST_DIR}/nevolver.hpp
-  ${CMAKE_CURRENT_LIST_DIR}/main.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/tests/main.cpp
   ${CMAKE_CURRENT_LIST_DIR}/bench1.cpp
   ${CMAKE_CURRENT_LIST_DIR}/random.hpp
   ${CMAKE_CURRENT_LIST_DIR}/squash.hpp
@@ -27,6 +27,7 @@ set(
   ${MY_PROJECT_HEADER_PATHS}
   -I${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   -I${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
+  -I${CMAKE_CURRENT_LIST_DIR}/deps/Catch2/single_include
   )
 
 ### setup clang format
@@ -88,10 +89,11 @@ endif()
 include_directories(
   ${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
+  ${CMAKE_CURRENT_LIST_DIR}/deps/Catch2/single_include
   )
 
 add_executable(
   nevolver
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src/easylogging++.cc
-  main.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/tests/main.cpp
   )
