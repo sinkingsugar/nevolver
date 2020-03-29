@@ -77,6 +77,7 @@ set(
   ${CMAKE_CURRENT_LIST_DIR}/networks/perceptron.hpp
   ${CMAKE_CURRENT_LIST_DIR}/networks/narx.hpp
   ${CMAKE_CURRENT_LIST_DIR}/networks/lstm.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/chainblocks/blocks.cpp
   )
 
 #### Header paths for tidy
@@ -85,6 +86,8 @@ set(
   ${MY_PROJECT_HEADER_PATHS}
   -I${CMAKE_CURRENT_LIST_DIR}
   -I${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
+  -I${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/include
+  -I${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/deps/magic_enum/include
   -I${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
   -I${CMAKE_CURRENT_LIST_DIR}/deps/Catch2/single_include
   )
@@ -155,6 +158,8 @@ if(APPLE)
 endif()
 
 include_directories(
+  ${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/include
+  ${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/deps/magic_enum/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
   ${CMAKE_CURRENT_LIST_DIR}/deps/Catch2/single_include
@@ -165,3 +170,10 @@ add_executable(
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src/easylogging++.cc
   ${CMAKE_CURRENT_LIST_DIR}/tests/main.cpp
   )
+
+add_library(cbnevolver SHARED
+  ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src/easylogging++.cc
+  ${CMAKE_CURRENT_LIST_DIR}/chainblocks/blocks.cpp)
+
+target_compile_options(cbnevolver PUBLIC
+  -fPIC -fvisibility=hidden)
