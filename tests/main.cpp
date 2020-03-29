@@ -295,3 +295,127 @@ TEST_CASE("Test rng", "[rng]") {
     }
   }
 }
+
+TEST_CASE("Squash", "[squash]") {
+  // Tested with
+  // https://www.derivative-calculator.net/
+  {
+    Nevolver::SigmoidS s;
+    REQUIRE(s(0.77) == Approx(0.683521));
+    auto fwd = s(0.77);
+    Nevolver::SigmoidD d;
+    REQUIRE(d(0.77, fwd) == Approx(0.216320));
+  }
+  {
+    Nevolver::TanhS s;
+    REQUIRE(s(0.77) == Approx(0.646929));
+    auto fwd = s(0.77);
+    Nevolver::TanhD d;
+    REQUIRE(d(0.77, fwd) == Approx(0.581482));
+  }
+  {
+    Nevolver::ReluS s;
+    REQUIRE(s(0.77) == Approx(0.77));
+    auto fwd = s(0.77);
+    Nevolver::ReluD d;
+    REQUIRE(d(0.77, fwd) == Approx(1.0));
+  }
+  {
+    Nevolver::LeakyReluS s;
+    REQUIRE(s(0.77) == Approx(0.77));
+    auto fwd = s(0.77);
+    Nevolver::LeakyReluD d;
+    REQUIRE(d(0.77, fwd) == Approx(1.0));
+  }
+  {
+    Nevolver::StepS s;
+    REQUIRE(s(0.77) == Approx(0.77));
+    auto fwd = s(0.77);
+    Nevolver::StepD d;
+    REQUIRE(d(0.77, fwd) == Approx(0.0));
+  }
+  {
+    Nevolver::SoftsignS s;
+    REQUIRE(s(0.77) == Approx(0.435028));
+    auto fwd = s(0.77);
+    Nevolver::SoftsignD d;
+    REQUIRE(d(0.77, fwd) == Approx(0.319193));
+  }
+  {
+    Nevolver::SoftsignS s;
+    REQUIRE(s(0.77) == Approx(0.435028));
+    auto fwd = s(0.77);
+    Nevolver::SoftsignD d;
+    REQUIRE(d(0.77, fwd) == Approx(0.319193));
+  }
+  {
+    Nevolver::SinS s;
+    REQUIRE(s(0.77) == Approx(0.696135));
+    auto fwd = s(0.77);
+    Nevolver::SinD d;
+    REQUIRE(d(0.77, fwd) == Approx(0.717911));
+  }
+  {
+    Nevolver::GaussianS s;
+    REQUIRE(s(0.77) == Approx(0.552722));
+    auto fwd = s(0.77);
+    Nevolver::GaussianD d;
+    REQUIRE(d(0.77, fwd) == Approx(-0.85119));
+  }
+  {
+    Nevolver::BentIdentityS s;
+    REQUIRE(s(0.77) == Approx(0.901051));
+    auto fwd = s(0.77);
+    Nevolver::BentIdentityD d;
+    REQUIRE(d(0.77, fwd) == Approx(1.305047));
+  }
+  {
+    Nevolver::BipolarS s;
+    REQUIRE(s(0.77) == Approx(1.0));
+    auto fwd = s(0.77);
+    Nevolver::BipolarD d;
+    REQUIRE(d(0.77, fwd) == Approx(0.0));
+  }
+  {
+    Nevolver::BipolarSigmoidS s;
+    REQUIRE(s(0.77) == Approx(0.367042));
+    auto fwd = s(0.77);
+    Nevolver::BipolarSigmoidD d;
+    REQUIRE(d(0.77, fwd) == Approx(0.432640));
+  }
+  {
+    Nevolver::HardTanhS s;
+    REQUIRE(s(0.77) == Approx(0.77));
+    auto fwd = s(0.77);
+    Nevolver::HardTanhD d;
+    REQUIRE(d(0.77, fwd) == Approx(1.0));
+  }
+  {
+    Nevolver::AbsoluteS s;
+    REQUIRE(s(0.77) == Approx(0.77));
+    auto fwd = s(0.77);
+    Nevolver::AbsoluteD d;
+    REQUIRE(d(0.77, fwd) == Approx(1.0));
+  }
+  {
+    Nevolver::InverseS s;
+    REQUIRE(s(0.77) == Approx(0.23));
+    auto fwd = s(0.77);
+    Nevolver::InverseD d;
+    REQUIRE(d(0.77, fwd) == Approx(-1.0));
+  }
+  {
+    Nevolver::SeluS s;
+    REQUIRE(s(0.77) == Approx(0.8090397603));
+    auto fwd = s(0.77);
+    Nevolver::SeluD d;
+    REQUIRE(d(0.77, fwd) == Approx(1.0507009874));
+  }
+  {
+    Nevolver::SeluS s;
+    REQUIRE(s(-0.77) == Approx(-0.94408));
+    auto fwd = s(-0.77);
+    Nevolver::SeluD d;
+    REQUIRE(d(-0.77, fwd) == Approx(0.814023));
+  }
+}
