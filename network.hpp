@@ -873,16 +873,24 @@ protected:
         for (auto fit = _sortedNodes.begin(); fit != _sortedNodes.end();
              ++fit) {
           for (auto tit = fit; tit != _sortedNodes.end(); ++tit) {
-            if (!isConnected(*fit, *tit))
-              _availConns.emplace_back(*fit, *tit);
+            if (!isConnected(*fit, *tit)) {
+              auto fn = (Node *)&(*fit).get();
+              auto tn = (Node *)&(*tit).get();
+              if (!fn->isInput() || !tn->isInput())
+                _availConns.emplace_back(*fit, *tit);
+            }
           }
         }
       else
         for (auto fit = _sortedNodes.rbegin(); fit != _sortedNodes.rend();
              ++fit) {
           for (auto tit = fit; tit != _sortedNodes.rend(); ++tit) {
-            if (!isConnected(*fit, *tit))
-              _availConns.emplace_back(*fit, *tit);
+            if (!isConnected(*fit, *tit)) {
+              auto fn = (Node *)&(*fit).get();
+              auto tn = (Node *)&(*tit).get();
+              if (!fn->isInput() || !tn->isInput())
+                _availConns.emplace_back(*fit, *tit);
+            }
           }
         }
 
