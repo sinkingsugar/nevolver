@@ -8,7 +8,7 @@ class HiddenNode final : public NodeCommon<HiddenNode> {
 public:
   HiddenNode(bool is_output = false, bool is_constant = false)
       : _is_constant(is_constant) {
-    _is_output = is_output;
+    _kind = is_output ? NodeKind::Output : NodeKind::Normal;
   }
 
   NeuroFloat doActivate() {
@@ -119,7 +119,7 @@ public:
     NEUROWIDE(wrate, rate);
     NEUROWIDE(wmomentum, momentum);
 
-    if (_is_output) {
+    if (_kind == NodeKind::Output) {
       _responsibility = target - _activation;
       _projected = _responsibility;
     } else {
@@ -202,10 +202,10 @@ public:
 
   void doMutate(NodeMutations mutation) {
     switch (mutation) {
-    case Squash: {
+    case NodeMutations::Squash: {
       _squash = Squash::random();
     } break;
-    case Bias: {
+    case NodeMutations::Bias: {
       _bias += Random::normal(0.0, 0.1);
     } break;
     }
@@ -213,7 +213,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar, std::uint32_t const version) {
-    ar(_squash, _derive, _bias, _mask, _is_output, _is_constant);
+    ar(_squash, _derive, _bias, _mask, _kind, _is_constant);
   }
 
 private:

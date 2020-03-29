@@ -545,6 +545,10 @@ protected:
     conn->to = (Node *)&to;
     conn->gater = nullptr;
 
+    if (conn->from->isInput() && conn->to->isInput()) {
+      throw std::runtime_error("Attempt to connect two input nodes!");
+    }
+
     _activeConns.emplace_back(conn);
 
     if (&from == &to) {
@@ -792,9 +796,12 @@ protected:
       }
 
       // init and mutate new node
-      auto &anyTo = *((AnyNode *)conn.to);
-      *newNode = std::visit([](auto &&n) { return AnyNode(n.clone()); }, anyTo);
+      auto &anyNode =
+          conn.to->isInput() ? *((AnyNode *)conn.from) : *((AnyNode *)conn.to);
+      *newNode =
+          std::visit([](auto &&n) { return AnyNode(n.clone()); }, anyNode);
       std::visit([](auto &&n) { n.mutate(NodeMutations::Squash); }, *newNode);
+      // the node we cloned might be a output node, turn that flag off
       std::visit([](auto &&n) { n.setOutput(false); }, *newNode);
 
       // insert into the network
@@ -804,6 +811,7 @@ protected:
 
       // connect it
       auto &anyFrom = *((AnyNode *)conn.from);
+      auto &anyTo = *((AnyNode *)conn.to);
       auto &c1 = connect(anyFrom, *newNode);
       auto &c2 = connect(*newNode, anyTo);
       if (gater) {

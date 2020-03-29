@@ -4,7 +4,8 @@
 #include "nevolver.hpp"
 
 namespace Nevolver {
-enum NodeMutations { Squash, Bias };
+enum class NodeMutations { Squash, Bias };
+enum class NodeKind { Normal, Input, Output };
 
 class Node {
 public:
@@ -57,15 +58,18 @@ public:
         _connections.gate.end());
   }
 
-  bool isOutput() const { return _is_output; }
+  bool isOutput() const { return _kind == NodeKind::Output; }
+  bool isInput() const { return _kind == NodeKind::Input; }
 
-  void setOutput(bool output) { _is_output = output; }
+  void setOutput(bool output) {
+    _kind = output ? NodeKind::Output : NodeKind::Normal;
+  }
 
 protected:
   NeuroFloat _activation{NeuroFloatZeros};
   NeuroFloat _responsibility{NeuroFloatZeros};
-  bool _is_output = false;
-  mutable NodeConnections _connections;
+  NodeKind _kind = NodeKind::Normal;
+  mutable NodeConnections _connections{};
 };
 
 template <typename T> class NodeCommon : public Node {
@@ -105,6 +109,8 @@ private:
 
 class InputNode final : public NodeCommon<InputNode> {
 public:
+  InputNode() : NodeCommon<InputNode>() { _kind = NodeKind::Input; }
+
   void setInput(NeuroFloat input) { _activation = input; }
 
   NeuroFloat doActivate() { return _activation; }

@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.14)
 set(CMAKE_CXX_STANDARD 17)
 add_compile_options(-Wall -march=sandybridge -ffast-math)
 
+# remember CMAKE_EXPORT_COMPILE_COMMANDS , for irony etc
+
 #### Files to format and tidy
 set(
   MY_PROJECT_SOURCE_FILES
@@ -76,6 +78,15 @@ foreach(_file ${MY_PROJECT_SOURCE_FILES})
 endforeach()
 add_custom_target(tidy DEPENDS ${tidyfied})
 ###
+
+### general
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  if(WIN32)
+    add_link_options(-fuse-ld=lld)
+  endif()
+elseif(WIN32)
+  add_link_options(-static)
+endif()
 
 if(UNIX AND NOT APPLE)
   set(LINUX TRUE)
