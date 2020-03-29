@@ -4,3 +4,6 @@
 [submodule "easyloggingpp"]
 	path = deps/easyloggingpp
 	url = https://github.com/nevolver/easyloggingpp.git
+[submodule "Catch2"]
+	path = deps/Catch2
+	url = https://github.com/catchorg/Catch2.git
