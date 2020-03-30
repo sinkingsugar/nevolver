@@ -158,7 +158,7 @@ if(APPLE)
 endif()
 
 include_directories(
-  ${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/include
+  ${CMAKE_CURRENT_LIST_DIR}/../automa/chainblocks/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/deps/magic_enum/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src

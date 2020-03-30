@@ -32,12 +32,11 @@ public:
 
 class Network {
 public:
-  virtual const std::vector<NeuroFloat> &
-  activate(const std::vector<NeuroFloat> &input) {
-    _outputCache.clear();
+  template <typename SomeFloat, typename SomeFloatVector>
+  void activate(const SomeFloatVector &input, std::vector<SomeFloat> &output) {
+    output.clear();
 
     auto isize = input.size();
-
     if (isize != _inputs.size())
       throw std::runtime_error(
           "Invalid activation input size, differs from actual "
@@ -50,23 +49,27 @@ public:
     for (auto &rnode : _sortedNodes) {
       auto &vnode = rnode.get();
       std::visit(
-          [this](auto &&node) {
+          [&output](auto &&node) {
             auto activation = node.activate();
             if (node.isOutput())
-              _outputCache.push_back(activation);
+              output.push_back(activation);
           },
           vnode);
     }
+  }
 
+  const std::vector<NeuroFloat> &
+  activate(const std::vector<NeuroFloat> &input) {
+    activate(input, _outputCache);
     return _outputCache;
   }
 
-  virtual const std::vector<NeuroFloat> &
-  activateFast(const std::vector<NeuroFloat> &input) {
-    _outputCache.clear();
+  template <typename SomeFloat, typename SomeFloatVector>
+  void activateFast(const SomeFloatVector &input,
+                    std::vector<SomeFloat> &output) {
+    output.clear();
 
     auto isize = input.size();
-
     if (isize != _inputs.size())
       throw std::runtime_error(
           "Invalid activation input size, differs from actual "
@@ -79,20 +82,24 @@ public:
     for (auto &rnode : _sortedNodes) {
       auto &vnode = rnode.get();
       std::visit(
-          [this](auto &&node) {
+          [&output](auto &&node) {
             auto activation = node.activateFast();
             if (node.isOutput())
-              _outputCache.push_back(activation);
+              output.push_back(activation);
           },
           vnode);
     }
+  }
 
+  const std::vector<NeuroFloat> &
+  activateFast(const std::vector<NeuroFloat> &input) {
+    activateFast(input, _outputCache);
     return _outputCache;
   }
 
-  virtual NeuroFloat propagate(const std::vector<NeuroFloat> &targets,
-                               double rate = 0.3, double momentum = 0.0,
-                               bool update = true) {
+  template <typename SomeFloat, typename SomeFloatVector>
+  SomeFloat propagate(const SomeFloatVector &targets, double rate = 0.3,
+                      double momentum = 0.0, bool update = true) {
     size_t outputIdx = targets.size();
     _outputCache.resize(outputIdx); // reuse for MSE
     for (auto it = _sortedNodes.rbegin(); it != _sortedNodes.rend(); ++it) {
@@ -127,16 +134,21 @@ public:
     return mean;
   }
 
-  virtual void clear() {
+  NeuroFloat propagate(const std::vector<NeuroFloat> &targets,
+                       double rate = 0.3, double momentum = 0.0,
+                       bool update = true) {
+    return propagate<NeuroFloat>(targets, rate, momentum, update);
+  }
+
+  void clear() {
     for (auto &node : _nodes) {
       std::visit([](auto &&node) { node.clear(); }, node);
     }
   }
 
-  virtual void mutate(const std::vector<NetworkMutations> &network_pool,
-                      double network_rate,
-                      const std::vector<NodeMutations> &node_pool,
-                      double node_rate, double weight_rate) {
+  void mutate(const std::vector<NetworkMutations> &network_pool,
+              double network_rate, const std::vector<NodeMutations> &node_pool,
+              double node_rate, double weight_rate) {
     for (auto &node : _sortedNodes) {
       for (auto mutation : node_pool) {
         auto chance = Random::nextDouble();
