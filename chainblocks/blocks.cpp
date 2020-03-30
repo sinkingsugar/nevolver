@@ -61,7 +61,7 @@ struct NetVar final : public CBVar {
     payload.objectVendorId = SharedNetwork::Vendor;
     payload.objectTypeId = SharedNetwork::Type;
     objectInfo = &SharedNetwork::ObjInfo;
-    flags |= CBVAR_FLAGS_USES_OBJINFO;
+    flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
   }
 
   NetVar(const CBVar &other) : CBVar() {
@@ -74,7 +74,7 @@ struct NetVar final : public CBVar {
     payload.objectVendorId = other.payload.objectVendorId;
     payload.objectTypeId = other.payload.objectTypeId;
     objectInfo = &SharedNetwork::ObjInfo;
-    flags |= CBVAR_FLAGS_USES_OBJINFO;
+    flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
   }
 
   operator std::shared_ptr<Network>() {
@@ -111,11 +111,24 @@ struct NeuroSeq : public CBVar {
 // so if we release networks on cleanup it's bad
 
 struct NetworkUser {
-  static inline Type StringType{{CBType::String}};
-  static inline Parameters _userParam{
-      {"Name", "The name of the network model variable.", {StringType}}};
+  static inline Type IntType{{CBType::Int}};
+  static inline Type IntSeq{{CBType::Seq, .seqTypes = IntType}};
+  static inline Type AnyType{{CBType::Any}};
+  static inline Type NetType{
+      {CBType::Object, .object = {SharedNetwork::Vendor, SharedNetwork::Type}}};
+  static inline Type NetVarType{
+      {CBType::ContextVar, .contextVarTypes = NetType}};
 
-  CBParametersInfo parameters() { return _userParam; }
+  static inline Parameters _userParam{
+      {"Name", "The name of the network model variable.", {NetVarType}}};
+
+  static CBTypesInfo inputTypes() { return AnyType; }
+  static CBTypesInfo outputTypes() { return AnyType; }
+  static CBParametersInfo parameters() { return _userParam; }
+
+  void setParam(int index, CBVar value) { _netParam = value; }
+
+  CBVar getParam(int index) { return _netParam; }
 
   ParamVar _netParam{};
   // we keep a ref here, in order to keep alive even
@@ -128,6 +141,11 @@ struct NetworkUser {
 };
 
 struct NetworkConsumer : public NetworkUser {
+  static inline Type FloatType{{CBType::Float}};
+  static inline Type FloatSeq{{CBType::Seq, .seqTypes = FloatType}};
+
+  static CBTypesInfo inputTypes() { return FloatSeq; }
+
   void warmup(CBContext *context) {
     NetworkUser::warmup(context);
     _netRef = NetVar(_netParam.get());
@@ -135,6 +153,8 @@ struct NetworkConsumer : public NetworkUser {
 };
 
 struct Activate : public NetworkConsumer {
+  static CBTypesInfo outputTypes() { return FloatSeq; }
+
   std::vector<NeuroVar> _outputCache;
 
   CBVar activate(CBContext *context, const CBVar &input) {
@@ -146,6 +166,8 @@ struct Activate : public NetworkConsumer {
 };
 
 struct Propagate : public NetworkConsumer {
+  CBTypesInfo outputTypes() { return FloatType; }
+
   double _rate = 0.3;
   double _momentum = 0.0;
 
@@ -157,6 +179,51 @@ struct Propagate : public NetworkConsumer {
 };
 
 struct MLPBlock : public NetworkUser {
+  static inline Parameters _mlpParams{
+      _userParam,
+      {{"Inputs", "The number of input nodes.", {IntType}},
+       {"Hidden",
+        "The number of hidden nodes, can be a sequence for multiple layers.",
+        {{IntType, IntSeq}}},
+       {"Outputs", "The number of output nodes.", {IntType}}}};
+
+  CBParametersInfo parameters() { return _mlpParams; }
+
+  void setParam(int index, CBVar value) {
+    switch (index) {
+    case 0:
+      NetworkUser::setParam(index, value);
+      break;
+    case 1:
+      _inputs = int(value.payload.intValue);
+      break;
+    case 2:
+      _hidden = value;
+      break;
+    case 3:
+      _outputs = int(value.payload.intValue);
+      break;
+    default:
+      break;
+    }
+  }
+
+  CBVar getParam(int index) {
+    switch (index) {
+    case 0:
+      return NetworkUser::getParam(index);
+    case 1:
+      return Var(_inputs);
+    case 2:
+      return Var(_hidden);
+      break;
+    case 3:
+      return Var(_outputs);
+    default:
+      return CBVar();
+    }
+  }
+
   int _inputs = 2;
   OwnedVar _hidden{Var(4)};
   int _outputs = 1;
@@ -165,7 +232,7 @@ struct MLPBlock : public NetworkUser {
     NetworkUser::warmup(context);
 
     // assert we are the creators of this network
-    assert(_netParam->valueType == CBType::None);
+    assert(_netParam.get().valueType == CBType::None);
 
     // create the network if it never existed yet
     if (!_netRef) {
@@ -182,7 +249,10 @@ struct MLPBlock : public NetworkUser {
     }
 
     _netParam.get() = NetVar(_netRef);
+    _netParam.get().refcount++;
   }
+
+  CBVar activate(CBContext *context, const CBVar &input) { return input; }
 };
 }; // namespace Nevolver
 
