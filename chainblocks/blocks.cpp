@@ -39,6 +39,8 @@ struct SharedNetwork final {
     refcount = 1;
   }
 
+  ~SharedNetwork() { assert(refcount == 0); }
+
   SharedNetwork(const SharedNetwork &other) = delete;
   SharedNetwork &operator=(const SharedNetwork &other) = delete;
 
@@ -109,6 +111,12 @@ struct NeuroSeq : public CBVar {
 // so if we release networks on cleanup it's bad
 
 struct NetworkUser {
+  static inline Type StringType{{CBType::String}};
+  static inline Parameters _userParam{
+      {"Name", "The name of the network model variable.", {StringType}}};
+
+  CBParametersInfo parameters() { return _userParam; }
+
   ParamVar _netParam{};
   // we keep a ref here, in order to keep alive even
   // after cleanups
@@ -148,7 +156,7 @@ struct Propagate : public NetworkConsumer {
   }
 };
 
-struct MPL : public NetworkUser {
+struct MLPBlock : public NetworkUser {
   int _inputs = 2;
   OwnedVar _hidden{Var(4)};
   int _outputs = 1;
@@ -157,7 +165,7 @@ struct MPL : public NetworkUser {
     NetworkUser::warmup(context);
 
     // assert we are the creators of this network
-    cbassert(_netParam->valueType == CBType::None);
+    assert(_netParam->valueType == CBType::None);
 
     // create the network if it never existed yet
     if (!_netRef) {
@@ -179,5 +187,10 @@ struct MPL : public NetworkUser {
 }; // namespace Nevolver
 
 namespace chainblocks {
-void registerBlocks() { LOG(DEBUG) << "Loading Nevolver blocks..."; }
+void registerBlocks() {
+  LOG(DEBUG) << "Loading Nevolver blocks...";
+  REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
+  REGISTER_CBLOCK("Nevolver.Activate", Nevolver::Activate);
+  REGISTER_CBLOCK("Nevolver.Propagate", Nevolver::Propagate);
+}
 } // namespace chainblocks
