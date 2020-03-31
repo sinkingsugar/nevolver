@@ -1,9 +1,12 @@
 #include "../network.hpp"
 #include "../networks/mlp.hpp"
+
 // order matters!
 INITIALIZE_EASYLOGGINGPP
 #include "chainblocks.hpp"
 #include "dllblock.hpp"
+
+#include <sstream>
 
 using namespace chainblocks;
 
@@ -13,33 +16,63 @@ struct SharedNetwork final {
   constexpr static auto Type = 'nnet';
 
   static CBBool serialize(CBPointer pnet, uint8_t **outData, size_t *outLen,
-                          CBPointer *handle) {}
+                          CBPointer *handle) {
+    auto p = reinterpret_cast<SharedNetwork *>(pnet);
+    auto buffer = new std::string();
 
-  static void freeMem(CBPointer handle) {}
+    {
+      std::stringstream ss;
+      cereal::BinaryOutputArchive oa(ss);
+      oa(*p->_holder.get());
+      *buffer = ss.str();
+    }
 
-  static CBPointer deserialize(uint8_t *data, size_t len) {}
+    *outData = (uint8_t *)buffer->data();
+    *outLen = buffer->size();
+    *handle = buffer;
+    return true;
+  }
+
+  static void freeMem(CBPointer handle) {
+    auto buffer = reinterpret_cast<std::string *>(handle);
+    delete buffer;
+  }
+
+  static CBPointer deserialize(uint8_t *data, size_t len) {
+    std::stringstream ss;
+    ss.write((const char *)data, len);
+    cereal::BinaryInputArchive ia(ss);
+    auto net = new Network();
+    ia(*net);
+    auto sn = new SharedNetwork(net);
+    return sn;
+  }
 
   static void addRef(CBPointer pnet) {
     auto p = reinterpret_cast<SharedNetwork *>(pnet);
-    p->refcount++;
+    p->_refcount++;
+    LOG(TRACE) << "Network refcount add: " << p->_refcount;
   }
 
   static void decRef(CBPointer pnet) {
     auto p = reinterpret_cast<SharedNetwork *>(pnet);
-    p->refcount--;
-    if (p->refcount == 0)
+    p->_refcount--;
+    LOG(TRACE) << "Network refcount dec: " << p->_refcount;
+    if (p->_refcount == 0) {
+      LOG(TRACE) << "Releasing a Network reference.";
       delete p;
+    }
   }
 
   static inline CBObjectInfo ObjInfo{"Nevolver.Network", &serialize, &freeMem,
                                      &deserialize,       &addRef,    &decRef};
 
-  SharedNetwork(const std::shared_ptr<Network> &net) {
-    _holder = net;
-    refcount = 1;
-  }
+  SharedNetwork(const std::shared_ptr<Network> &net)
+      : _holder(net), _refcount(1) {}
 
-  ~SharedNetwork() { assert(refcount == 0); }
+  SharedNetwork(Network *net) : _holder(net), _refcount(1) {}
+
+  ~SharedNetwork() { assert(_refcount == 0); }
 
   SharedNetwork(const SharedNetwork &other) = delete;
   SharedNetwork &operator=(const SharedNetwork &other) = delete;
@@ -48,7 +81,7 @@ struct SharedNetwork final {
 
 private:
   std::shared_ptr<Network> _holder;
-  uint32_t refcount;
+  uint32_t _refcount;
 };
 
 struct NetVar final : public CBVar {
@@ -111,6 +144,8 @@ struct NeuroSeq : public CBVar {
 // so if we release networks on cleanup it's bad
 
 struct NetworkUser {
+  ~NetworkUser() { LOG(TRACE) << "NetworkUser destroy."; }
+
   static inline Type IntType{{CBType::Int}};
   static inline Type IntSeq{{CBType::Seq, .seqTypes = IntType}};
   static inline Type AnyType{{CBType::Any}};
@@ -166,6 +201,45 @@ struct Activate : public NetworkConsumer {
 };
 
 struct Propagate : public NetworkConsumer {
+  static inline Parameters _propParams{
+      _userParam,
+      {{"Rate", "The number of input nodes.", {FloatType}},
+       {"Momentum",
+        "The number of hidden nodes, can be a sequence for multiple layers.",
+        {FloatType}}}};
+
+  CBParametersInfo parameters() { return _propParams; }
+
+  void setParam(int index, CBVar value) {
+    switch (index) {
+    case 0:
+      NetworkUser::setParam(index, value);
+      break;
+    case 1:
+      _rate = value.payload.floatValue;
+      break;
+    case 2:
+      _momentum = value.payload.floatValue;
+      break;
+    default:
+      break;
+    }
+  }
+
+  CBVar getParam(int index) {
+    switch (index) {
+    case 0:
+      return NetworkUser::getParam(index);
+    case 1:
+      return Var(_rate);
+    case 2:
+      return Var(_momentum);
+      break;
+    default:
+      return CBVar();
+    }
+  }
+
   CBTypesInfo outputTypes() { return FloatType; }
 
   double _rate = 0.3;

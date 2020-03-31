@@ -32,6 +32,8 @@ public:
 
 class Network {
 public:
+  ~Network() { LOG(TRACE) << "Network destroy."; }
+
   template <typename SomeFloat, typename SomeFloatVector>
   void activate(const SomeFloatVector &input, std::vector<SomeFloat> &output) {
     output.clear();
