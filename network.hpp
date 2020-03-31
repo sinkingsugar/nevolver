@@ -785,8 +785,10 @@ protected:
   void doMutation(NetworkMutations mutation) {
     switch (mutation) {
     case NetworkMutations::AddNode: {
-      if (_activeConns.size() == 0)
+      if (_activeConns.size() == 0) {
+        LOG(WARNING) << "AddNode mutation on a network without connections!";
         return;
+      }
 
       // Add a node by inserting it in the middle of a connection
       auto ridx = Random::nextUInt() % _activeConns.size();
@@ -929,16 +931,22 @@ protected:
       w->second.insert(&conn);
     } break;
     case NetworkMutations::SubConnection: {
-      if (_activeConns.size() == 0)
+      if (_activeConns.size() == 0) {
+        LOG(WARNING)
+            << "SubConnection mutation on a network without connections!";
         return;
+      }
 
       auto ridx = Random::nextUInt() % _activeConns.size();
       auto &conn = *_activeConns[ridx];
       disconnect(conn);
     } break;
     case NetworkMutations::ShareWeight: {
-      if (_activeConns.size() < 2)
+      if (_activeConns.size() < 2) {
+        LOG(WARNING) << "ShareWeight mutation on a network with less then 2 "
+                        "connections!";
         return;
+      }
 
       auto c1idx = Random::nextUInt() % _activeConns.size();
       auto c2idx = Random::nextUInt() % _activeConns.size();
@@ -957,8 +965,11 @@ protected:
       auto nin = _inputs.size();
       auto nout = _outputs.size();
       auto ntot = _sortedNodes.size();
-      if (ntot - (nin + nout) < 2)
+      if (ntot - (nin + nout) < 2) {
+        LOG(WARNING)
+            << "SwapNodes mutation on a network with no nodes to swap!";
         return;
+      }
 
       size_t n1idx = 0;
       do {
