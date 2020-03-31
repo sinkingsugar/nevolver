@@ -1,6 +1,9 @@
 #ifndef NEVOLVER_H
 #define NEVOLVER_H
 
+// #define NEVOLVER_WIDE
+
+#include "neurofloat.hpp"
 #include "random.hpp"
 #include <cassert>
 #include <deque>
@@ -33,51 +36,7 @@
 
 #define NEVOLVER_VERSION 0x1
 
-// #define NEVOLVER_WIDE4
-
 namespace Nevolver {
-#ifdef NEVOLVER_WIDE8
-
-#define NEVOLVER_WIDE
-
-typedef float NeuroFloat __attribute__((vector_size(32)));
-constexpr int NeuroFloatWidth = 8;
-
-#define NEUROWIDE(_v_, _x_)                                                    \
-  NeuroFloat _v_ {                                                             \
-    float(_x_), float(_x_), float(_x_), float(_x_), float(_x_), float(_x_),    \
-        float(_x_), float(_x_),                                                \
-  }
-constexpr NeuroFloat NeuroFloatZeros =
-    NeuroFloat{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-constexpr NeuroFloat NeuroFloatOnes =
-    NeuroFloat{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-
-#elif defined(NEVOLVER_WIDE4)
-
-#define NEVOLVER_WIDE
-
-typedef float NeuroFloat __attribute__((vector_size(16)));
-constexpr int NeuroFloatWidth = 4;
-
-#define NEUROWIDE(_v_, _x_)                                                    \
-  NeuroFloat _v_ { float(_x_), float(_x_), float(_x_), float(_x_) }
-
-constexpr NeuroFloat NeuroFloatZeros = NeuroFloat{0.0, 0.0, 0.0, 0.0};
-constexpr NeuroFloat NeuroFloatOnes = NeuroFloat{1.0, 1.0, 1.0, 1.0};
-
-#else
-
-using NeuroFloat = double;
-constexpr int NeuroFloatWidth = 1;
-
-#define NEUROWIDE(_v_, _x_)                                                    \
-  NeuroFloat _v_ { NeuroFloat(_x_) }
-constexpr NeuroFloat NeuroFloatZeros = 0.0;
-constexpr NeuroFloat NeuroFloatOnes = 1.0;
-
-#endif
-
 class Random {
 public:
   static double nextDouble() {
@@ -87,8 +46,8 @@ public:
   static NeuroFloat next() {
 #ifdef NEVOLVER_WIDE
     NeuroFloat res;
-    for (int i = 0; i < NeuroFloatWidth; i++) {
-      res[i] = nextDouble();
+    for (auto i = 0; i < NeuroFloat::Width; i++) {
+      res.vec[i] = nextDouble();
     }
     return res;
 #else
@@ -111,15 +70,8 @@ public:
   }
 
   static NeuroFloat normal(double mean, double stdDeviation) {
-#ifdef NEVOLVER_WIDE
-    NeuroFloat res;
-    for (int i = 0; i < NeuroFloatWidth; i++) {
-      res[i] = normalDouble(mean, stdDeviation);
-    }
-    return res;
-#else
+
     return normalDouble(mean, stdDeviation);
-#endif
   }
 
 private:
@@ -140,18 +92,6 @@ using AnyNode = std::variant<InputNode, HiddenNode>;
 using Group = std::vector<std::reference_wrapper<AnyNode>>;
 using Weight = std::pair<NeuroFloat, std::unordered_set<const Connection *>>;
 } // namespace Nevolver
-
-#ifdef NEVOLVER_WIDE
-inline std::ostream &operator<<(std::ostream &os,
-                                const Nevolver::NeuroFloat &f) {
-  os << "[";
-  for (int i = 0; i < Nevolver::NeuroFloatWidth; i++) {
-    os << f[i] << " ";
-  }
-  os << "]";
-  return os;
-}
-#endif
 
 // Foundation
 #include "connections.hpp"

@@ -43,7 +43,7 @@ public:
         auto plus =
             node->connections().self && node->connections().self->gater == this
                 ? static_cast<const HiddenNode *>(node)->_old
-                : NeuroFloatZeros;
+                : 0;
         _tmpInfluence.emplace_back(
             connection->w() * connection->from->current() + plus);
       }
@@ -116,14 +116,14 @@ public:
 
   void doPropagate(double rate, double momentum, bool update,
                    NeuroFloat target) {
-    NEUROWIDE(wrate, rate);
-    NEUROWIDE(wmomentum, momentum);
+    NeuroFloat wrate = rate;
+    NeuroFloat wmomentum = momentum;
 
     if (_kind == NodeKind::Output) {
       _responsibility = target - _activation;
       _projected = _responsibility;
     } else {
-      NeuroFloat error = NeuroFloatZeros;
+      NeuroFloat error = 0;
 
       for (auto connection : _connections.outbound) {
         error += connection->to->responsibility() * connection->w() *
@@ -131,14 +131,14 @@ public:
       }
       _projected = _derivative * error;
 
-      error = NeuroFloatZeros;
+      error = 0;
 
       for (auto connection : _connections.gate) {
         auto node = connection->to;
         NeuroFloat influence =
             node->connections().self && node->connections().self->gater == this
                 ? static_cast<const HiddenNode *>(node)->_old
-                : NeuroFloatZeros;
+                : 0;
         influence += connection->w() * connection->from->current();
         error += connection->to->responsibility() * influence;
       }
@@ -185,19 +185,19 @@ public:
 
   void doClear() {
     for (auto &conn : _connections.inbound) {
-      conn->eligibility = NeuroFloatZeros;
+      conn->eligibility = 0;
       conn->xtraces.nodes.clear();
       conn->xtraces.values.clear();
     }
     for (auto &conn : _connections.gate) {
-      conn->gain = NeuroFloatZeros;
+      conn->gain = 0;
     }
-    _responsibility = NeuroFloatZeros;
-    _projected = NeuroFloatZeros;
-    _gated = NeuroFloatZeros;
-    _old = NeuroFloatZeros;
-    _state = NeuroFloatZeros;
-    _activation = NeuroFloatZeros;
+    _responsibility = 0;
+    _projected = 0;
+    _gated = 0;
+    _old = 0;
+    _state = 0;
+    _activation = 0;
   }
 
   void doMutate(NodeMutations mutation) {
@@ -220,16 +220,16 @@ private:
   SquashFunc _squash{SigmoidS()};
   DeriveFunc _derive{SigmoidD()};
   NeuroFloat _bias{Random::normal(0.0, 1.0)};
-  NeuroFloat _state{NeuroFloatZeros};
-  NeuroFloat _old{NeuroFloatZeros};
-  NeuroFloat _mask{NeuroFloatOnes};
-  NeuroFloat _derivative{NeuroFloatZeros};
-  NeuroFloat _previousDeltaBias{NeuroFloatZeros};
+  NeuroFloat _state{0};
+  NeuroFloat _old{0};
+  NeuroFloat _mask{1};
+  NeuroFloat _derivative{0};
+  NeuroFloat _previousDeltaBias{0};
   bool _is_constant;
   std::vector<const Node *> _tmpNodes;
   std::vector<NeuroFloat> _tmpInfluence;
-  NeuroFloat _projected{NeuroFloatZeros};
-  NeuroFloat _gated{NeuroFloatZeros};
+  NeuroFloat _projected{0};
+  NeuroFloat _gated{0};
 };
 } // namespace Nevolver
 

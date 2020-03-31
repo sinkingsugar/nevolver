@@ -41,7 +41,7 @@ public:
         _sortedNodes.emplace_back(node);
         inputGate.emplace_back(node);
         auto &hidden = std::get<HiddenNode>(node);
-        hidden.setBias(NeuroFloatOnes);
+        hidden.setBias(1);
       }
 
       for (int i = 0; i < lsize; i++) {
@@ -49,7 +49,7 @@ public:
         _sortedNodes.emplace_back(node);
         forgetGate.emplace_back(node);
         auto &hidden = std::get<HiddenNode>(node);
-        hidden.setBias(NeuroFloatOnes);
+        hidden.setBias(1);
       }
 
       for (int i = 0; i < lsize; i++) {
@@ -63,7 +63,7 @@ public:
         _sortedNodes.emplace_back(node);
         outputGate.emplace_back(node);
         auto &hidden = std::get<HiddenNode>(node);
-        hidden.setBias(NeuroFloatOnes);
+        hidden.setBias(1);
       }
 
       if (i != hsize - 1) {

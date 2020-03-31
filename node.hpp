@@ -67,8 +67,8 @@ public:
   }
 
 protected:
-  NeuroFloat _activation{NeuroFloatZeros};
-  NeuroFloat _responsibility{NeuroFloatZeros};
+  NeuroFloat _activation{0};
+  NeuroFloat _responsibility{0};
   NodeKind _kind = NodeKind::Normal;
   mutable NodeConnections _connections{};
 };
@@ -80,7 +80,7 @@ public:
   NeuroFloat activateFast() { return as_underlying().doFastActivate(); }
 
   void propagate(double rate, double momentum, bool update,
-                 NeuroFloat target = NeuroFloatZeros) {
+                 NeuroFloat target = 0) {
     return as_underlying().doPropagate(rate, momentum, update, target);
   }
 

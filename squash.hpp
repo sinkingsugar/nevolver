@@ -15,21 +15,13 @@ struct IdentityS final : public SquashBase {
 
 struct IdentityD final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &state, const NeuroFloat &fwd) const {
-    return NeuroFloatOnes;
+    return 1.0;
   }
 };
 
 struct SigmoidS final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &input) const {
-#ifdef NEVOLVER_WIDE
-    NeuroFloat res;
-    for (int i = 0; i < NeuroFloatWidth; i++) {
-      res[i] = 1.0 / (1.0 + __builtin_exp(-input[i]));
-    }
-    return res;
-#else
     return 1.0 / (1.0 + std::exp(-input));
-#endif
   }
 };
 
@@ -161,7 +153,7 @@ struct BipolarSigmoidD final : public SquashBase {
 
 struct HardTanhS final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &input) const {
-    return std::max(-1.0, std::min(1.0, input));
+    return std::max(NeuroFloat(-1.0), std::min(NeuroFloat(1.0), input));
   }
 };
 

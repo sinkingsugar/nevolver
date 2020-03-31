@@ -126,12 +126,12 @@ public:
           },
           vnode);
     }
-    NeuroFloat mean = NeuroFloatZeros;
+    NeuroFloat mean = 0;
     for (auto err : _outputCache) {
       mean += err;
     }
 
-    NEUROWIDE(wsize, double(_outputCache.size()));
+    NeuroFloat wsize = NeuroFloat(_outputCache.size());
     mean /= wsize;
     return mean;
   }
