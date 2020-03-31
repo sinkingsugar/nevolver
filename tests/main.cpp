@@ -199,8 +199,8 @@ TEST_CASE("LSTM test vectors", "[lstmv]") {
   REQUIRE(stats.unusedConnections == 150);
   REQUIRE(stats.unusedWeights == 151);
 
-  lstm.mutate({Nevolver::NetworkMutations::SubNode,
-               Nevolver::NetworkMutations::AddNode},
+  lstm.mutate({Nevolver::NetworkMutations::AddNode,
+               Nevolver::NetworkMutations::SubNode},
               1.0, {}, 0.0, 0.0);
 
   stats = lstm.getStats();
