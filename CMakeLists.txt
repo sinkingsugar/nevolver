@@ -67,6 +67,7 @@ set(
   MY_PROJECT_SOURCE_FILES
   ${MY_PROJECT_SOURCE_FILES}
   ${CMAKE_CURRENT_LIST_DIR}/nevolver.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/neurofloat.hpp
   ${CMAKE_CURRENT_LIST_DIR}/tests/main.cpp
   ${CMAKE_CURRENT_LIST_DIR}/random.hpp
   ${CMAKE_CURRENT_LIST_DIR}/squash.hpp

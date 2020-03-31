@@ -45,31 +45,31 @@ struct TanhD final : public SquashBase {
 
 struct ReluS final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &input) const {
-    return input > 0.0 ? input : 0.0;
+    return either(input > 0.0, input, 0.0);
   }
 };
 
 struct ReluD final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &state, const NeuroFloat &fwd) const {
-    return state > 0.0 ? 1.0 : 0.0;
+    return either(state > 0.0, 1.0, 0.0);
   }
 };
 
 struct LeakyReluS final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &input) const {
-    return input > 0.0 ? input : input / 20.0;
+    return either(input > 0.0, input, input / 20.0);
   }
 };
 
 struct LeakyReluD final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &state, const NeuroFloat &fwd) const {
-    return state > 0.0 ? 1.0 : 1.0 / 20.0;
+    return either(state > 0.0, 1.0, 1.0 / 20.0);
   }
 };
 
 struct StepS final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &input) const {
-    return input > 0.0 ? input : 0.0;
+    return either(input > 0.0, input, 0.0);
   }
 };
 
@@ -129,7 +129,7 @@ struct BentIdentityD final : public SquashBase {
 
 struct BipolarS final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &input) const {
-    return input > 0.0 ? 1.0 : -1.0;
+    return either(input > 0.0, 1.0, -1.0);
   }
 };
 
@@ -153,13 +153,13 @@ struct BipolarSigmoidD final : public SquashBase {
 
 struct HardTanhS final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &input) const {
-    return std::max(NeuroFloat(-1.0), std::min(NeuroFloat(1.0), input));
+    return either(input < -1.0, -1.0, either(input > 1.0, 1.0, input));
   }
 };
 
 struct HardTanhD final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &state, const NeuroFloat &fwd) const {
-    return state > -1.0 && state < 1.0 ? 1.0 : 0.0;
+    return either(state > -1.0 && state < 1.0, 1.0, 0.0);
   }
 };
 
@@ -171,7 +171,7 @@ struct AbsoluteS final : public SquashBase {
 
 struct AbsoluteD final : public SquashBase {
   NeuroFloat operator()(const NeuroFloat &state, const NeuroFloat &fwd) const {
-    return state < 0.0 ? -1.0 : 1.0;
+    return either(state < 0.0, -1.0, 1.0);
   }
 };
 
@@ -192,14 +192,14 @@ struct SeluBase : public SquashBase {
 
 struct SeluS final : public SeluBase {
   NeuroFloat operator()(const NeuroFloat &input) const {
-    auto fx = input > 0.0 ? input : alpha * (std::exp(input) - 1.0);
+    auto fx = either(input > 0.0, input, alpha * (std::exp(input) - 1.0));
     return fx * scale;
   }
 };
 
 struct SeluD final : public SeluBase {
   NeuroFloat operator()(const NeuroFloat &state, const NeuroFloat &fwd) const {
-    return state > 0.0 ? scale : alpha * std::exp(state) * scale;
+    return either(state > 0.0, scale, alpha * std::exp(state) * scale);
   }
 };
 

@@ -111,15 +111,8 @@ public:
             if (node.isOutput()) {
               outputIdx--;
               node.propagate(rate, momentum, update, targets[outputIdx]);
-#ifdef NEVOLVER_WIDE
-              for (int i = 0; i < NeuroFloatWidth; i++) {
-                _outputCache[outputIdx][i] =
-                    __builtin_pow(node.current()[i] - targets[outputIdx][i], 2);
-              }
-#else
               _outputCache[outputIdx] =
                   std::pow(node.current() - targets[outputIdx], 2);
-#endif
             } else {
               node.propagate(rate, momentum, update);
             }

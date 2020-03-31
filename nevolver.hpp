@@ -3,7 +3,6 @@
 
 // #define NEVOLVER_WIDE
 
-#include "neurofloat.hpp"
 #include "random.hpp"
 #include <cassert>
 #include <deque>
@@ -25,6 +24,8 @@
 #include <cereal/types/variant.hpp>
 #include <cereal/types/vector.hpp>
 #include <easylogging++.h>
+
+#include "neurofloat.hpp"
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
