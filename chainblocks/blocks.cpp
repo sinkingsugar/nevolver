@@ -187,6 +187,8 @@ struct NetworkConsumer : public NetworkUser {
   }
 };
 
+struct NetworkProducer : public NetworkUser {};
+
 struct Activate : public NetworkConsumer {
   static CBTypesInfo outputTypes() { return FloatSeq; }
 
@@ -252,7 +254,7 @@ struct Propagate : public NetworkConsumer {
   }
 };
 
-struct MLPBlock : public NetworkUser {
+struct MLPBlock : public NetworkProducer {
   static inline Parameters _mlpParams{
       _userParam,
       {{"Inputs", "The number of input nodes.", {IntType}},
