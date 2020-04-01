@@ -78,53 +78,22 @@ template <int A, int W, typename T> struct alignas(A) Vector {
 };
 
 namespace std {
-template <typename TVec> TVec sqrt(const TVec x) {
-  TVec res;
-  for (auto i = 0; i < TVec::Width; i++) {
-    res.vec[i] = __builtin_sqrt(x.vec[i]);
+#define NFLOAT_UNARY(__op__)                                                   \
+  template <typename TVec> TVec __op__(const TVec x) {                         \
+    TVec res;                                                                  \
+    for (auto i = 0; i < TVec::Width; i++) {                                   \
+      res.vec[i] = __builtin_##__op__(x.vec[i]);                               \
+    }                                                                          \
+    return res;                                                                \
   }
-  return res;
-}
 
-template <typename TVec> TVec log(const TVec x) {
-  TVec res;
-  for (auto i = 0; i < TVec::Width; i++) {
-    res.vec[i] = __builtin_log(x.vec[i]);
-  }
-  return res;
-}
-
-template <typename TVec> TVec sin(const TVec x) {
-  TVec res;
-  for (auto i = 0; i < TVec::Width; i++) {
-    res.vec[i] = __builtin_sin(x.vec[i]);
-  }
-  return res;
-}
-
-template <typename TVec> TVec cos(const TVec x) {
-  TVec res;
-  for (auto i = 0; i < TVec::Width; i++) {
-    res.vec[i] = __builtin_cos(x.vec[i]);
-  }
-  return res;
-}
-
-template <typename TVec> TVec exp(const TVec x) {
-  TVec res;
-  for (auto i = 0; i < TVec::Width; i++) {
-    res.vec[i] = __builtin_exp(x.vec[i]);
-  }
-  return res;
-}
-
-template <typename TVec> TVec tanh(const TVec x) {
-  TVec res;
-  for (auto i = 0; i < TVec::Width; i++) {
-    res.vec[i] = __builtin_tanh(x.vec[i]);
-  }
-  return res;
-}
+NFLOAT_UNARY(sqrt);
+NFLOAT_UNARY(log);
+NFLOAT_UNARY(sin);
+NFLOAT_UNARY(cos);
+NFLOAT_UNARY(exp);
+NFLOAT_UNARY(tanh);
+NFLOAT_UNARY(fabs);
 
 template <typename TVec, typename P> TVec pow(const TVec x, P p) {
   TVec res;
@@ -133,17 +102,9 @@ template <typename TVec, typename P> TVec pow(const TVec x, P p) {
   }
   return res;
 }
-
-template <typename TVec> TVec fabs(const TVec x) {
-  TVec res;
-  for (auto i = 0; i < TVec::Width; i++) {
-    res.vec[i] = __builtin_fabs(x.vec[i]);
-  }
-  return res;
-}
 } // namespace std
 
-constexpr static auto vector_width = 4;
+constexpr static auto vector_width = NEVOLVER_WIDE;
 constexpr static auto vector_align = vector_width * 4;
 using NeuroFloat = Vector<vector_align, vector_width, float>;
 using NeuroInt = Vector<vector_align, vector_width, int>;
@@ -213,6 +174,28 @@ inline NeuroInt operator>=(const NeuroFloat &a, const NeuroFloat &b) {
   return b <= a;
 }
 
+inline NeuroInt isnan(const NeuroFloat &a) {
+  NeuroInt res;
+  for (auto i = 0; i < NeuroFloat::Width; i++) {
+    if (std::isnan(a.vec[i]))
+      res.vec[i] = -1;
+    else
+      res.vec[i] = 0;
+  }
+  return res;
+}
+
+inline NeuroInt isinf(const NeuroFloat &a) {
+  NeuroInt res;
+  for (auto i = 0; i < NeuroFloat::Width; i++) {
+    if (std::isinf(a.vec[i]))
+      res.vec[i] = -1;
+    else
+      res.vec[i] = 0;
+  }
+  return res;
+}
+
 inline NeuroFloat operator-(const NeuroFloat &a, const NeuroFloat &b) {
   NeuroFloat res;
   res.vec = a.vec - b.vec;
@@ -253,12 +236,20 @@ inline NeuroFloat either(NeuroInt pred, NeuroFloat positive,
                          NeuroFloat negative) {
   NeuroFloat res;
   for (auto i = 0; i < vector_width; i++) {
-    if (pred.vec[i] == 0)
+    if (pred.vec[i] < 0)
       res.vec[i] = positive.vec[i];
     else
       res.vec[i] = negative.vec[i];
   }
   return res;
+}
+
+inline bool any(NeuroInt pred) {
+  for (auto i = 0; i < vector_width; i++) {
+    if (pred.vec[i] < 0)
+      return true;
+  }
+  return false;
 }
 
 #else

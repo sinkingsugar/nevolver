@@ -257,21 +257,21 @@ TEST_CASE("NARX SGD training", "[narx1]") {
 }
 
 TEST_CASE("LSTM SGD training", "[lstm1]") {
-  auto lstm = Nevolver::LSTM(1, {4}, 1);
-  for (auto i = 0; i < 50000; i++) {
+  auto lstm = Nevolver::LSTM(1, {6}, 1);
+  for (auto i = 0; i < 20000; i++) {
     lstm.activate({0.0});
-    lstm.propagate({0.0});
+    lstm.propagate({0.0}, 0.05, 0.03);
     lstm.activate({0.0});
-    lstm.propagate({0.0});
+    lstm.propagate({0.0}, 0.05, 0.03);
     lstm.activate({0.0});
-    lstm.propagate({1.0});
+    lstm.propagate({1.0}, 0.05, 0.03);
     lstm.activate({1.0});
-    lstm.propagate({0.0});
+    lstm.propagate({0.0}, 0.05, 0.03);
     lstm.activate({0.0});
-    lstm.propagate({0.0});
+    lstm.propagate({0.0}, 0.05, 0.03);
     lstm.activate({0.0});
-    auto err = lstm.propagate({1.0});
-    if (!(i % 10000))
+    auto err = lstm.propagate({1.0}, 0.05, 0.03);
+    if (!(i % 1000))
       std::cout << "MSE: " << err << "\n";
     lstm.clear();
   }

@@ -106,7 +106,7 @@ public:
     // finally setup weights now that we know how many we need
     for (auto &conn : _connections) {
       auto &w = _weights.emplace_front();
-      w.first = Random::normal(0.0, 1.0);
+      w.first = Random::normal(0.0, 0.5);
       w.second.insert(&conn);
       conn.weight = &w;
     }
