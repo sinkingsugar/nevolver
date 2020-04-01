@@ -118,7 +118,7 @@ struct NetVar final : public CBVar {
 struct NeuroVar final : public CBVar {
   NeuroVar(const NeuroFloat &f) : CBVar() {
     valueType = Float;
-    payload.floatValue = f;
+    payload.floatValue = mean(f);
   }
 
   operator NeuroFloat() const {

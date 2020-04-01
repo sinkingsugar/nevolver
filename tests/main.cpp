@@ -26,6 +26,10 @@ inline bool operator==(const NeuroFloat &lhs,
 INITIALIZE_EASYLOGGINGPP
 
 TEST_CASE("MLP SGD training and serialize", "[perceptron1]") {
+  std::vector<float> y = {1, 2, 3};
+  NeuroFloat x(y);
+  LOG(INFO) << x;
+
   auto perceptron = Nevolver::MLP(2, {4, 4}, 1);
   for (auto i = 0; i < 50000; i++) {
     perceptron.activate({0.0, 0.0});

@@ -12,6 +12,12 @@ Overall -march=sandybridge, 16 seems to be the best in terms of pure SIMD ops
 #include <iostream>
 #include <limits>
 
+template <typename T, typename = void> struct is_iterable : std::false_type {};
+
+template <typename T>
+struct is_iterable<T, std::void_t<decltype(std::begin(std::declval<T>()))>>
+    : std::true_type {};
+
 template <int A, int W, typename T> struct alignas(A) Vector {
   using Vec = Vector<A, W, T>;
   using ValueType = T;
@@ -22,6 +28,19 @@ template <int A, int W, typename T> struct alignas(A) Vector {
   Vector(T repeat) {
     for (auto i = 0; i < W; i++) {
       vec[i] = repeat;
+    }
+  }
+
+  template <typename Iterable,
+            std::enable_if_t<is_iterable<Iterable>::value, int> = 0>
+  Vector(Iterable iter) {
+    auto idx = 0;
+    while (true) {
+      for (auto &v : iter) {
+        vec[idx++] = T(v);
+        if (idx == W)
+          return;
+      }
     }
   }
 
@@ -281,6 +300,12 @@ inline NeuroFloat::ValueType mean(const NeuroFloat &vec) {
   return reduce(std::plus<NeuroFloat::ValueType>(), vec) / NeuroFloat::Width;
 }
 
+inline NeuroFloat::ValueType logSumExp(const NeuroFloat &vec) {
+  auto e = std::exp(vec);
+  auto s = reduce(std::plus<NeuroFloat::ValueType>(), e);
+  return std::log(s);
+}
+
 #else
 
 using NeuroFloat = float;
@@ -295,13 +320,15 @@ inline NeuroFloat either(bool pred, NeuroFloat positive, NeuroFloat negative) {
 
 inline NeuroFloat mean(const NeuroFloat &single) { return single; }
 
+inline NeuroFloat logSumExp(const NeuroFloat &single) { return single; }
+
 #endif
 
 #if 0
 
 int main(int argc, char** argv) {
-  NeuroFloat x(argc);
-  std::cout << (reduce(std::plus<NeuroFloat::ValueType>(), x) / NeuroFloat::Width) << "\n";
+  NeuroFloat x(10);
+  std::cout << logSumExp(x) << "\n";
 }
 
 #endif
