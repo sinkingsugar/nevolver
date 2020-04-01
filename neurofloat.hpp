@@ -1,5 +1,15 @@
 #ifdef NEVOLVER_WIDE
 
+/*
+Any size is fine, perf gains are ensured but:
+Overall -march=sandybridge, 16 seems to be the best in terms of pure SIMD ops
+*/
+
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <functional>
+#include <iostream>
 #include <limits>
 
 template <int A, int W, typename T> struct alignas(A) Vector {
@@ -252,6 +262,25 @@ inline bool any(NeuroInt pred) {
   return false;
 }
 
+template <class F>
+inline NeuroFloat::ValueType reduce(F &&f, const NeuroFloat &vec) {
+  NeuroFloat::ValueType res = 0.0;
+  for (auto i = 0; i < NeuroFloat::Width; i++) {
+    res = f(res, vec.vec[i]);
+  }
+  return res;
+}
+
+inline NeuroFloat softmax(const NeuroFloat &vec) {
+  auto e = std::exp(vec);
+  auto s = reduce(std::plus<NeuroFloat::ValueType>(), e);
+  return e / s;
+}
+
+inline NeuroFloat::ValueType mean(const NeuroFloat &vec) {
+  return reduce(std::plus<NeuroFloat::ValueType>(), vec) / NeuroFloat::Width;
+}
+
 #else
 
 using NeuroFloat = float;
@@ -262,6 +291,17 @@ inline NeuroFloat either(bool pred, NeuroFloat positive, NeuroFloat negative) {
     return positive;
   else
     return negative;
+}
+
+inline NeuroFloat mean(const NeuroFloat &single) { return single; }
+
+#endif
+
+#if 0
+
+int main(int argc, char** argv) {
+  NeuroFloat x(argc);
+  std::cout << (reduce(std::plus<NeuroFloat::ValueType>(), x) / NeuroFloat::Width) << "\n";
 }
 
 #endif
