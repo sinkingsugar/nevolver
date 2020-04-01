@@ -1,5 +1,7 @@
 #ifdef NEVOLVER_WIDE
 
+#include <limits>
+
 template <int A, int W, typename T> struct alignas(A) Vector {
   using Vec = Vector<A, W, T>;
   using ValueType = T;
@@ -59,15 +61,15 @@ template <int A, int W, typename T> struct alignas(A) Vector {
 
   template <class Archive>
   void save(Archive &ar, std::uint32_t const version) const {
-    std::vector<ValueType> vals;
+    std::array<T, W> vals;
     for (auto i = 0; i < W; i++) {
-      vals.emplace_back(vec[i]);
+      vals[i] = vec[i];
     }
     ar(vals);
   }
 
   template <class Archive> void load(Archive &ar, std::uint32_t const version) {
-    std::vector<ValueType> vals;
+    std::array<T, W> vals;
     ar(vals);
     for (auto i = 0; i < W; i++) {
       vec[i] = vals[i];
@@ -141,10 +143,21 @@ template <typename TVec> TVec fabs(const TVec x) {
 }
 } // namespace std
 
-constexpr static auto vector_width = 128;
+constexpr static auto vector_width = 4;
 constexpr static auto vector_align = vector_width * 4;
 using NeuroFloat = Vector<vector_align, vector_width, float>;
 using NeuroInt = Vector<vector_align, vector_width, int>;
+
+template <class T>
+typename std::enable_if<!std::numeric_limits<T>::is_integer, NeuroInt>::type
+almost_equal(T x, T y, int ulp) {
+  // the machine epsilon has to be scaled to the magnitude of the values used
+  // and multiplied by the desired precision in ULPs (units in the last place)
+  return std::fabs(x - y) <=
+             std::numeric_limits<T>::epsilon() * std::fabs(x + y) * ulp
+         // unless the result is subnormal
+         || std::fabs(x - y) < std::numeric_limits<T>::min();
+}
 
 inline std::ostream &operator<<(std::ostream &os, const NeuroFloat &f) {
   os << "[";
@@ -170,14 +183,34 @@ inline NeuroInt operator&&(const NeuroInt &a, const NeuroInt &b) {
   return res;
 }
 
+inline NeuroInt operator||(const NeuroInt &a, const NeuroInt &b) {
+  NeuroInt res;
+  res.vec = a.vec && b.vec;
+  return res;
+}
+
+inline NeuroInt operator==(const NeuroFloat &a, const NeuroFloat &b) {
+  return almost_equal(a, b, 2);
+}
+
 inline NeuroInt operator<(const NeuroFloat &a, const NeuroFloat &b) {
   NeuroInt res;
   res.vec = a.vec < b.vec;
   return res;
 }
 
+inline NeuroInt operator<=(const NeuroFloat &a, const NeuroFloat &b) {
+  NeuroInt res;
+  res.vec = a.vec <= b.vec;
+  return res;
+}
+
 inline NeuroInt operator>(const NeuroFloat &a, const NeuroFloat &b) {
   return b < a;
+}
+
+inline NeuroInt operator>=(const NeuroFloat &a, const NeuroFloat &b) {
+  return b <= a;
 }
 
 inline NeuroFloat operator-(const NeuroFloat &a, const NeuroFloat &b) {

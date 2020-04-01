@@ -8,13 +8,13 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-struct MyApprox : Catch::Detail::Approx {
 #ifdef NEVOLVER_WIDE
+struct MyApprox : Catch::Detail::Approx {
   MyApprox(NeuroFloat val) : Catch::Detail::Approx(val.vec[0]) {}
-#else
-  MyApprox(NeuroFloat val) : Catch::Detail::Approx(val) {}
-#endif
 };
+#else
+using MyApprox = Catch::Detail::Approx;
+#endif
 
 #ifdef NEVOLVER_WIDE
 inline bool operator==(const NeuroFloat &lhs,

@@ -20,6 +20,7 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/cereal.hpp>
+#include <cereal/types/array.hpp>
 #include <cereal/types/functional.hpp>
 #include <cereal/types/variant.hpp>
 #include <cereal/types/vector.hpp>
@@ -58,21 +59,12 @@ public:
 
   static uint32_t nextUInt() { return _gen(); }
 
-  static double normalDouble(double mean, double stdDeviation) {
-    double u1 = 0.0;
-    while (u1 == 0.0) {
-      u1 = nextDouble();
-    }
-
-    auto u2 = nextDouble();
-    auto rstdNorm = std::sqrt(-2.0 * std::log(u1)) * std::sin(2.0 * M_PI * u2);
-
-    return mean + stdDeviation * rstdNorm;
-  }
-
   static NeuroFloat normal(double mean, double stdDeviation) {
-
-    return normalDouble(mean, stdDeviation);
+    NeuroFloat u1 = nextDouble();
+    u1 = either(u1 == 0.0, 0.00000001, u1);
+    auto u2 = next();
+    auto rstdNorm = std::sqrt(-2.0 * std::log(u1)) * std::sin(2.0 * M_PI * u2);
+    return mean + stdDeviation * rstdNorm;
   }
 
 private:
