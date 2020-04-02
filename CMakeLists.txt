@@ -176,7 +176,6 @@ add_library(cbnevolver SHARED
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src/easylogging++.cc
   ${CMAKE_CURRENT_LIST_DIR}/chainblocks/blocks.cpp)
 
-if(UNIX)
 target_compile_options(cbnevolver PUBLIC
-  -fvisibility=hidden)
-endif()
+  -fvisibility=hidden
+  )

@@ -3,6 +3,7 @@
 
 // order matters!
 INITIALIZE_EASYLOGGINGPP
+
 #include "chainblocks.hpp"
 #include "dllblock.hpp"
 
@@ -48,18 +49,22 @@ struct SharedNetwork final {
     return sn;
   }
 
+  // Used when cloneVar is called around the chain
   static void addRef(CBPointer pnet) {
     auto p = reinterpret_cast<SharedNetwork *>(pnet);
     p->_refcount++;
     LOG(TRACE) << "Network refcount add: " << p->_refcount;
   }
 
+  // Used when cloneVar is called around the chain
   static void decRef(CBPointer pnet) {
     auto p = reinterpret_cast<SharedNetwork *>(pnet);
     p->_refcount--;
     LOG(TRACE) << "Network refcount dec: " << p->_refcount;
     if (p->_refcount == 0) {
-      LOG(TRACE) << "Releasing a Network reference.";
+      LOG(TRACE)
+          << "Releasing a Network reference; remaining use_count on holder: "
+          << (p->_holder.use_count() - 1);
       delete p;
     }
   }
@@ -75,29 +80,85 @@ struct SharedNetwork final {
   ~SharedNetwork() { assert(_refcount == 0); }
 
   SharedNetwork(const SharedNetwork &other) = delete;
+  SharedNetwork(const SharedNetwork &&other) = delete;
   SharedNetwork &operator=(const SharedNetwork &other) = delete;
+  SharedNetwork &operator=(const SharedNetwork &&other) = delete;
 
   std::shared_ptr<Network> get() { return _holder; }
 
 private:
+  // Might be confusing!
+  // but we actually have 2 RC mechanism
+  // the reason is that we want to keep our networks detached from the chain
+  // in order to do mutation/crossover etc
   std::shared_ptr<Network> _holder;
   uint32_t _refcount;
 };
 
 struct NetVar final : public CBVar {
   NetVar(const NetVar &other) = delete;
+  NetVar(const NetVar &&other) = delete;
   NetVar &operator=(const NetVar &other) = delete;
+  NetVar &operator=(const NetVar &&other) = delete;
 
-  NetVar(const std::shared_ptr<Network> &net) : CBVar() {
+  NetVar &operator=(const std::shared_ptr<Network> &other) {
+    // this is from resertState
+    // we want to cleanup older refs if any
+
+    if (valueType == CBType::Object && payload.objectValue)
+      SharedNetwork::decRef(payload.objectValue);
+
     valueType = CBType::Object;
-    payload.objectValue = new SharedNetwork(net);
+    // notice that new SharedNetwork sets refcount to 1
+    payload.objectValue = new SharedNetwork(other);
     payload.objectVendorId = SharedNetwork::Vendor;
     payload.objectTypeId = SharedNetwork::Type;
     objectInfo = &SharedNetwork::ObjInfo;
     flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
+
+    return *this;
   }
 
-  NetVar(const CBVar &other) : CBVar() {
+  NetVar &operator=(const CBVar &other) {
+    // this is from setState
+    // so we actually want to addRef
+
+    if (valueType == CBType::Object && payload.objectValue)
+      SharedNetwork::decRef(payload.objectValue);
+
+    assert(other.valueType == Object);
+    assert(other.payload.objectValue);
+    assert(other.payload.objectVendorId == SharedNetwork::Vendor);
+    assert(other.payload.objectTypeId == SharedNetwork::Type);
+    valueType = Object;
+    payload.objectValue = other.payload.objectValue;
+    payload.objectVendorId = other.payload.objectVendorId;
+    payload.objectTypeId = other.payload.objectTypeId;
+    objectInfo = &SharedNetwork::ObjInfo;
+    flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
+
+    SharedNetwork::addRef(payload.objectValue);
+
+    return *this;
+  }
+
+  NetVar() = default;
+
+  // explicit NetVar(const std::shared_ptr<Network> &net) : CBVar() {
+  //   valueType = CBType::Object;
+  //   // notice that new SharedNetwork sets refcount to 1
+  //   payload.objectValue = new SharedNetwork(net);
+  //   payload.objectVendorId = SharedNetwork::Vendor;
+  //   payload.objectTypeId = SharedNetwork::Type;
+  //   objectInfo = &SharedNetwork::ObjInfo;
+  //   flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
+  // }
+
+  explicit NetVar(const CBVar &other) : CBVar() {
+    // Notice that we don't addRef here
+    // as we mostly use the shared pointer behind it
+    // we use this just as utility basically
+    // and assertion
     assert(other.valueType == Object);
     assert(other.payload.objectValue);
     assert(other.payload.objectVendorId == SharedNetwork::Vendor);
@@ -110,14 +171,18 @@ struct NetVar final : public CBVar {
     flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
   }
 
-  operator std::shared_ptr<Network>() {
+  std::shared_ptr<Network> get() {
     return reinterpret_cast<SharedNetwork *>(payload.objectValue)->get();
   }
 };
 
 struct NeuroVar final : public CBVar {
+  // Converters
+
   NeuroVar(const NeuroFloat &f) : CBVar() {
     valueType = Float;
+    // TODO other cases were we want actual vectors
+    // when compiled as WIDE
     payload.floatValue = mean(f);
   }
 
@@ -139,6 +204,32 @@ struct NeuroSeq : public CBVar {
   }
 };
 
+static Type IntType{{CBType::Int}};
+static Type IntSeq{{CBType::Seq, .seqTypes = IntType}};
+static Type AnyType{{CBType::Any}};
+static Type StringType{{CBType::String}};
+static Type FloatType{{CBType::Float}};
+static Type FloatSeq{{CBType::Seq, .seqTypes = FloatType}};
+static Type NetType{
+    {CBType::Object, .object = {SharedNetwork::Vendor, SharedNetwork::Type}}};
+static Type NetVarType{{CBType::ContextVar, .contextVarTypes = NetType}};
+
+static Parameters CommonParams{
+    {"Name", "The network model variable.", {NetVarType, StringType}}};
+static Parameters PropParams{
+    CommonParams,
+    {{"Rate", "The number of input nodes.", {FloatType}},
+     {"Momentum",
+      "The number of hidden nodes, can be a sequence for multiple layers.",
+      {FloatType}}}};
+static Parameters MlpParams{
+    CommonParams,
+    {{"Inputs", "The number of input nodes.", {IntType}},
+     {"Hidden",
+      "The number of hidden nodes, can be a sequence for multiple layers.",
+      {{IntType, IntSeq}}},
+     {"Outputs", "The number of output nodes.", {IntType}}}};
+
 // Problems
 // We want to train this with genetic
 // so if we release networks on cleanup it's bad
@@ -146,20 +237,9 @@ struct NeuroSeq : public CBVar {
 struct NetworkUser {
   ~NetworkUser() { LOG(TRACE) << "NetworkUser destroy."; }
 
-  static inline Type IntType{{CBType::Int}};
-  static inline Type IntSeq{{CBType::Seq, .seqTypes = IntType}};
-  static inline Type AnyType{{CBType::Any}};
-  static inline Type NetType{
-      {CBType::Object, .object = {SharedNetwork::Vendor, SharedNetwork::Type}}};
-  static inline Type NetVarType{
-      {CBType::ContextVar, .contextVarTypes = NetType}};
-
-  static inline Parameters _userParam{
-      {"Name", "The name of the network model variable.", {NetVarType}}};
-
   static CBTypesInfo inputTypes() { return AnyType; }
   static CBTypesInfo outputTypes() { return AnyType; }
-  static CBParametersInfo parameters() { return _userParam; }
+  static CBParametersInfo parameters() { return CommonParams; }
 
   void setParam(int index, CBVar value) { _netParam = value; }
 
@@ -176,18 +256,30 @@ struct NetworkUser {
 };
 
 struct NetworkConsumer : public NetworkUser {
-  static inline Type FloatType{{CBType::Float}};
-  static inline Type FloatSeq{{CBType::Seq, .seqTypes = FloatType}};
-
   static CBTypesInfo inputTypes() { return FloatSeq; }
 
   void warmup(CBContext *context) {
     NetworkUser::warmup(context);
-    _netRef = NetVar(_netParam.get());
+    // Consumers basically don't care about
+    // SharedNetwork refcount
+    // here we use a temporary to write directly
+    // our shared_ptr
+    _netRef = NetVar(_netParam.get()).get();
   }
 };
 
-struct NetworkProducer : public NetworkUser {};
+struct NetworkProducer : public NetworkUser {
+  NetVar _state{};
+
+  CBVar activate(CBContext *context, const CBVar &input) { return input; }
+
+  CBVar getState() { return _state; }
+
+  void setState(CBVar state) {
+    _state = state;
+    _netRef = _state.get();
+  }
+};
 
 struct Activate : public NetworkConsumer {
   static CBTypesInfo outputTypes() { return FloatSeq; }
@@ -203,14 +295,8 @@ struct Activate : public NetworkConsumer {
 };
 
 struct Propagate : public NetworkConsumer {
-  static inline Parameters _propParams{
-      _userParam,
-      {{"Rate", "The number of input nodes.", {FloatType}},
-       {"Momentum",
-        "The number of hidden nodes, can be a sequence for multiple layers.",
-        {FloatType}}}};
 
-  CBParametersInfo parameters() { return _propParams; }
+  CBParametersInfo parameters() { return PropParams; }
 
   void setParam(int index, CBVar value) {
     switch (index) {
@@ -255,15 +341,7 @@ struct Propagate : public NetworkConsumer {
 };
 
 struct MLPBlock : public NetworkProducer {
-  static inline Parameters _mlpParams{
-      _userParam,
-      {{"Inputs", "The number of input nodes.", {IntType}},
-       {"Hidden",
-        "The number of hidden nodes, can be a sequence for multiple layers.",
-        {{IntType, IntSeq}}},
-       {"Outputs", "The number of output nodes.", {IntType}}}};
-
-  CBParametersInfo parameters() { return _mlpParams; }
+  CBParametersInfo parameters() { return MlpParams; }
 
   void setParam(int index, CBVar value) {
     switch (index) {
@@ -310,33 +388,44 @@ struct MLPBlock : public NetworkProducer {
     // assert we are the creators of this network
     assert(_netParam.get().valueType == CBType::None);
 
-    // create the network if it never existed yet
     if (!_netRef) {
-      std::vector<int> hiddens;
-      if (_hidden.valueType == Int) {
-        hiddens.push_back(int(_hidden.payload.intValue));
-      } else if (_hidden.valueType == Seq) {
-        IterableSeq s(_hidden);
-        for (auto &n : s) {
-          hiddens.push_back(int(n.payload.intValue));
-        }
-      }
-      _netRef = std::make_shared<MLP>(_inputs, hiddens, _outputs);
+      // create the network if it never existed yet
+      resetState();
     }
 
-    _netParam.get() = NetVar(_netRef);
+    // it will be decRef-ed by destroyVar
+    _netParam.get() = _state;
     _netParam.get().refcount++;
   }
 
-  CBVar activate(CBContext *context, const CBVar &input) { return input; }
+  void resetState() {
+    std::vector<int> hiddens;
+    if (_hidden.valueType == Int) {
+      hiddens.push_back(int(_hidden.payload.intValue));
+    } else if (_hidden.valueType == Seq) {
+      IterableSeq s(_hidden);
+      for (auto &n : s) {
+        hiddens.push_back(int(n.payload.intValue));
+      }
+    }
+    _netRef = std::make_shared<MLP>(_inputs, hiddens, _outputs);
+    _state = _netRef;
+  }
 };
 }; // namespace Nevolver
 
 namespace chainblocks {
 void registerBlocks() {
-  LOG(DEBUG) << "Loading Nevolver blocks...";
-  REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
   REGISTER_CBLOCK("Nevolver.Activate", Nevolver::Activate);
   REGISTER_CBLOCK("Nevolver.Propagate", Nevolver::Propagate);
+  REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
 }
 } // namespace chainblocks
+
+// Compiling with mingw compilers we need this trick to make sure
+// no symbols are exported
+#ifdef _WIN32
+extern "C" {
+__declspec(dllexport) void hiddenSymbols() {}
+};
+#endif
