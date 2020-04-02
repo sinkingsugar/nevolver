@@ -144,6 +144,8 @@ public:
   void mutate(const std::vector<NetworkMutations> &network_pool,
               double network_rate, const std::vector<NodeMutations> &node_pool,
               double node_rate, double weight_rate) {
+    LOG(TRACE) << "Network mutate start...";
+
     for (auto &node : _sortedNodes) {
       for (auto mutation : node_pool) {
         auto chance = Random::nextDouble();
@@ -169,6 +171,8 @@ public:
         doMutation(mutation);
       }
     }
+
+    LOG(TRACE) << "Network mutate end.";
   }
 
   // https://en.wikipedia.org/wiki/Pairing_function
@@ -179,6 +183,8 @@ public:
   }
 
   static Network crossover(const Network &net1, const Network &net2) {
+    LOG(TRACE) << "Network crossover start...";
+
     Network res{};
     // try to keep some statistic to see if crossover is worth it
     res._crossoverScore =
@@ -320,6 +326,8 @@ public:
       res._weights[widx].second.insert(&nc);
       widx++;
     }
+
+    LOG(TRACE) << "Network crossover end.";
 
     return res;
   }
@@ -650,6 +658,7 @@ protected:
       conn.gater->removeGate(conn);
     }
 
+    assert(conn.weight);
     conn.weight->second.erase(&conn);
     releaseWeight(conn.weight);
 
@@ -843,6 +852,7 @@ protected:
       }
       w1->first = Random::normal(0.0, 1.0);
       w1->second.insert(&c1);
+      c1.weight = w1;
 
       Weight *w2;
       if (!_unusedWeights.empty()) {
@@ -854,6 +864,7 @@ protected:
       }
       w2->first = Random::normal(0.0, 1.0);
       w2->second.insert(&c2);
+      c2.weight = w2;
     } break;
     case NetworkMutations::SubNode: {
       auto nin = _inputs.size();
@@ -922,6 +933,7 @@ protected:
       }
       w->first = Random::normal(0.0, 1.0);
       w->second.insert(&conn);
+      conn.weight = w;
     } break;
     case NetworkMutations::SubConnection: {
       if (_activeConns.size() == 0) {
@@ -978,7 +990,7 @@ protected:
                std::visit([](auto &&n) { return n.isOutput(); },
                           _sortedNodes[n2idx].get()));
 
-      auto n1copy = _sortedNodes[n1idx].get();
+      auto n1copy = _sortedNodes[n1idx];
       _sortedNodes[n1idx] = _sortedNodes[n2idx];
       _sortedNodes[n2idx] = n1copy;
     } break;

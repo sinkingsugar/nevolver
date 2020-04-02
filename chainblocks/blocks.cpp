@@ -18,6 +18,7 @@ struct SharedNetwork final {
 
   static CBBool serialize(CBPointer pnet, uint8_t **outData, size_t *outLen,
                           CBPointer *handle) {
+    LOG(DEBUG) << "SharedNetwork serialize";
     auto p = reinterpret_cast<SharedNetwork *>(pnet);
     auto buffer = new std::string();
 
@@ -40,6 +41,7 @@ struct SharedNetwork final {
   }
 
   static CBPointer deserialize(uint8_t *data, size_t len) {
+    LOG(DEBUG) << "SharedNetwork deserialize";
     std::stringstream ss;
     ss.write((const char *)data, len);
     cereal::BinaryInputArchive ia(ss);
@@ -102,7 +104,7 @@ struct NetVar final : public CBVar {
   NetVar &operator=(const NetVar &&other) = delete;
 
   NetVar &operator=(const std::shared_ptr<Network> &other) {
-    // this is from resertState
+    // this is from producer warmup
     // we want to cleanup older refs if any
 
     if (valueType == CBType::Object && payload.objectValue)
@@ -234,6 +236,8 @@ static Parameters MlpParams{
 // We want to train this with genetic
 // so if we release networks on cleanup it's bad
 
+// TODO Add exposed/required variables
+
 struct NetworkUser {
   ~NetworkUser() { LOG(TRACE) << "NetworkUser destroy."; }
 
@@ -271,11 +275,18 @@ struct NetworkConsumer : public NetworkUser {
 struct NetworkProducer : public NetworkUser {
   NetVar _state{};
 
+  ~NetworkProducer() {
+    if (_state.valueType == Object)
+      SharedNetwork::decRef(_state.payload.objectValue);
+  }
+
   CBVar activate(CBContext *context, const CBVar &input) { return input; }
 
   CBVar getState() { return _state; }
 
   void setState(CBVar state) {
+    if (state.valueType == None)
+      return;
     _state = state;
     _netRef = _state.get();
   }
@@ -302,6 +313,45 @@ struct NetworkProducer : public NetworkUser {
     auto p1 = NetVar(parent1).get();
     auto p2 = NetVar(parent2).get();
     *_netRef.get() = Network::crossover(*p1.get(), *p2.get());
+    // Also update the state cos state is used in getState
+    // by other crossovers
+    _state = _netRef;
+  }
+
+  void cleanup() {
+    NetworkUser::cleanup();
+
+    // Do an implicit clear on the network
+    if (_netRef) {
+      _netRef->clear();
+    }
+  }
+
+  // actual netref construction here
+  virtual void resetState() = 0;
+
+  void warmup(CBContext *context) {
+    NetworkUser::warmup(context);
+
+    // assert we are the creators of this network
+    assert(_netParam.get().valueType == CBType::None);
+
+    if (!_netRef) {
+      // create the network if it never existed yet
+      resetState();
+    }
+
+    // ensure addref
+    // and that _state is up to date
+    _state = _netRef;
+    // one ref will be removed on cleanup
+    // so we need to add one
+    // that will be removed if reassigned or destroied
+    SharedNetwork::addRef(_state.payload.objectValue);
+
+    // it will be decRef-ed by destroyVar
+    _netParam.get() = _state;
+    _netParam.get().refcount++;
   }
 };
 
@@ -319,7 +369,6 @@ struct Activate : public NetworkConsumer {
 };
 
 struct Propagate : public NetworkConsumer {
-
   CBParametersInfo parameters() { return PropParams; }
 
   void setParam(int index, CBVar value) {
@@ -364,7 +413,7 @@ struct Propagate : public NetworkConsumer {
   }
 };
 
-struct MLPBlock : public NetworkProducer {
+struct MLPBlock final : public NetworkProducer {
   CBParametersInfo parameters() { return MlpParams; }
 
   void setParam(int index, CBVar value) {
@@ -406,23 +455,7 @@ struct MLPBlock : public NetworkProducer {
   OwnedVar _hidden{Var(4)};
   int _outputs = 1;
 
-  void warmup(CBContext *context) {
-    NetworkUser::warmup(context);
-
-    // assert we are the creators of this network
-    assert(_netParam.get().valueType == CBType::None);
-
-    if (!_netRef) {
-      // create the network if it never existed yet
-      resetState();
-    }
-
-    // it will be decRef-ed by destroyVar
-    _netParam.get() = _state;
-    _netParam.get().refcount++;
-  }
-
-  void resetState() {
+  void resetState() override {
     std::vector<int> hiddens;
     if (_hidden.valueType == Int) {
       hiddens.push_back(int(_hidden.payload.intValue));
@@ -433,7 +466,6 @@ struct MLPBlock : public NetworkProducer {
       }
     }
     _netRef = std::make_shared<MLP>(_inputs, hiddens, _outputs);
-    _state = _netRef;
   }
 };
 }; // namespace Nevolver
@@ -443,6 +475,9 @@ void registerBlocks() {
   REGISTER_CBLOCK("Nevolver.Activate", Nevolver::Activate);
   REGISTER_CBLOCK("Nevolver.Propagate", Nevolver::Propagate);
   REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
+
+  // TODO
+  // Add .Clear block
 }
 } // namespace chainblocks
 

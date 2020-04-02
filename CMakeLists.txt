@@ -1,7 +1,7 @@
 project("chainblocks-tgbot")
 cmake_minimum_required(VERSION 3.14)
 set(CMAKE_CXX_STANDARD 17)
-add_compile_options(-Wall -march=sandybridge -ffast-math -Wno-multichar)
+add_compile_options(-DELPP_THREAD_SAFE -Wall -march=sandybridge -ffast-math -Wno-multichar)
 
 # remember CMAKE_EXPORT_COMPILE_COMMANDS , for irony etc
 
