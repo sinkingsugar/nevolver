@@ -279,6 +279,30 @@ struct NetworkProducer : public NetworkUser {
     _state = state;
     _netRef = _state.get();
   }
+
+  void mutate(CBTable options) {
+    const std::vector<NetworkMutations> muts{
+        NetworkMutations::AddNode,          NetworkMutations::SubNode,
+        NetworkMutations::AddFwdConnection, NetworkMutations::AddBwdConnection,
+        NetworkMutations::SubConnection,    NetworkMutations::ShareWeight,
+        NetworkMutations::SwapNodes,        NetworkMutations::AddGate,
+        NetworkMutations::SubGate};
+
+    const std::vector<NodeMutations> nmuts{NodeMutations::Squash,
+                                           NodeMutations::Bias};
+
+    _netRef->mutate(muts, 0.2, nmuts, 0.2, 0.2);
+  }
+
+  void crossover(CBVar parent1, CBVar parent2) {
+    // crossover happens before warmup
+    // so all we gotta do is assign to the shared ptr (deref)
+    // this will propagate to other activate etc blocks
+    // once warmup is called
+    auto p1 = NetVar(parent1).get();
+    auto p2 = NetVar(parent2).get();
+    *_netRef.get() = Network::crossover(*p1.get(), *p2.get());
+  }
 };
 
 struct Activate : public NetworkConsumer {
