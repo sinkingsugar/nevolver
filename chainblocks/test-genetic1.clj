@@ -9,10 +9,8 @@
                          :Inputs 2
                          :Hidden 4
                          :Outputs 1))
-
           (Const [0.0 1.0])
-          (Nevolver.Activate .mlp)
-          (Log "Activation")))
+          (Nevolver.Activate .mlp)))
 
 (def fitness
   (Chain
@@ -20,8 +18,7 @@
    (Math.Subtract 1.0)
    (ToFloat)
    (Math.Abs)
-   (Math.Multiply -1.0)
-   (Log "Fitness")))
+   (Math.Multiply -1.0)))
 
 (schedule
  Root
@@ -32,10 +29,8 @@
     (Evolve
      mlp
      fitness
-     :Population 16
-     :Coroutines 2
-     :Crossover 1.0
-     :Mutation 1.0)
+     :Population 10000
+     :Coroutines 100)
     (Log)
     (Ref "best"))
    15)

@@ -206,7 +206,7 @@ public:
       _squash = Squash::random();
     } break;
     case NodeMutations::Bias: {
-      _bias += Random::normal(0.0, 0.1);
+      _bias += Random::adjust();
     } break;
     }
   }
@@ -219,7 +219,7 @@ public:
 private:
   SquashFunc _squash{SigmoidS()};
   DeriveFunc _derive{SigmoidD()};
-  NeuroFloat _bias{Random::normal(0.0, 0.5)};
+  NeuroFloat _bias{Random::init()};
   NeuroFloat _state{0};
   NeuroFloat _old{0};
   NeuroFloat _mask{1};

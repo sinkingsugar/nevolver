@@ -67,6 +67,12 @@ public:
     return mean + stdDeviation * rstdNorm;
   }
 
+  // our weight/bias init
+  static NeuroFloat init() { return Random::normal(0.0, 0.5); }
+
+  // our mutation adjust for weights
+  static NeuroFloat adjust() { return Random::normal(0.0, 0.1); }
+
 private:
 #ifdef NDEBUG
   static inline thread_local std::random_device _rd{};

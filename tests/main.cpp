@@ -277,12 +277,12 @@ TEST_CASE("LSTM SGD training", "[lstm1]") {
   }
 
   std::cout << "LSTM0: \n";
-  std::cout << mean(lstm.activate({0.0})[0]) << " (0.0)\n";
-  std::cout << mean(lstm.activate({0.0})[0]) << " (0.0)\n";
-  std::cout << mean(lstm.activate({0.0})[0]) << " (1.0)\n";
-  std::cout << mean(lstm.activate({1.0})[0]) << " (0.0)\n";
-  std::cout << mean(lstm.activate({0.0})[0]) << " (0.0)\n";
-  std::cout << mean(lstm.activate({0.0})[0]) << " (1.0)\n";
+  std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+  std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+  std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
+  std::cout << lstm.activate({1.0})[0] << " (0.0)\n";
+  std::cout << lstm.activate({0.0})[0] << " (0.0)\n";
+  std::cout << lstm.activate({0.0})[0] << " (1.0)\n";
 
   {
     std::ofstream os("nn.cereal", std::ios::binary);
@@ -297,12 +297,12 @@ TEST_CASE("LSTM SGD training", "[lstm1]") {
     ia(lstm2);
 
     std::cout << "LSTM1: \n";
-    std::cout << mean(lstm2.activate({0.0})[0]) << " (0.0)\n";
-    std::cout << mean(lstm2.activate({0.0})[0]) << " (0.0)\n";
-    std::cout << mean(lstm2.activate({0.0})[0]) << " (1.0)\n";
-    std::cout << mean(lstm2.activate({1.0})[0]) << " (0.0)\n";
-    std::cout << mean(lstm2.activate({0.0})[0]) << " (0.0)\n";
-    std::cout << mean(lstm2.activate({0.0})[0]) << " (1.0)\n";
+    std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+    std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+    std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
+    std::cout << lstm2.activate({1.0})[0] << " (0.0)\n";
+    std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
+    std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
   }
 }
 

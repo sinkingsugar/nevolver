@@ -10,7 +10,7 @@ public:
   LSTM(int inputs, std::vector<int> hidden, int outputs) {
     Group inputNodes;
     for (int i = 0; i < inputs; i++) {
-      auto &node = _nodes.emplace_front(InputNode());
+      auto &node = _nodes.emplace_back(InputNode());
       _sortedNodes.emplace_back(node);
       _inputs.emplace_back(std::get<InputNode>(node));
       inputNodes.emplace_back(node);
@@ -18,7 +18,7 @@ public:
 
     Group outputNodes;
     for (int i = 0; i < outputs; i++) {
-      auto &node = _nodes.emplace_front(HiddenNode(true));
+      auto &node = _nodes.emplace_back(HiddenNode(true));
       _outputs.emplace_back(node);
       outputNodes.emplace_back(node);
     }
@@ -37,7 +37,7 @@ public:
       auto &outputBlock = i == hsize - 1 ? outputNodes : layers.emplace_back();
 
       for (int i = 0; i < lsize; i++) {
-        auto &node = _nodes.emplace_front(HiddenNode());
+        auto &node = _nodes.emplace_back(HiddenNode());
         _sortedNodes.emplace_back(node);
         inputGate.emplace_back(node);
         auto &hidden = std::get<HiddenNode>(node);
@@ -45,7 +45,7 @@ public:
       }
 
       for (int i = 0; i < lsize; i++) {
-        auto &node = _nodes.emplace_front(HiddenNode());
+        auto &node = _nodes.emplace_back(HiddenNode());
         _sortedNodes.emplace_back(node);
         forgetGate.emplace_back(node);
         auto &hidden = std::get<HiddenNode>(node);
@@ -53,13 +53,13 @@ public:
       }
 
       for (int i = 0; i < lsize; i++) {
-        auto &node = _nodes.emplace_front(HiddenNode());
+        auto &node = _nodes.emplace_back(HiddenNode());
         _sortedNodes.emplace_back(node);
         memoryCell.emplace_back(node);
       }
 
       for (int i = 0; i < lsize; i++) {
-        auto &node = _nodes.emplace_front(HiddenNode());
+        auto &node = _nodes.emplace_back(HiddenNode());
         _sortedNodes.emplace_back(node);
         outputGate.emplace_back(node);
         auto &hidden = std::get<HiddenNode>(node);
@@ -68,7 +68,7 @@ public:
 
       if (i != hsize - 1) {
         for (int i = 0; i < lsize; i++) {
-          auto &node = _nodes.emplace_front(HiddenNode());
+          auto &node = _nodes.emplace_back(HiddenNode());
           _sortedNodes.emplace_back(node);
           outputBlock.emplace_back(node);
         }
@@ -117,8 +117,8 @@ public:
 
     // finally setup weights now that we know how many we need
     for (auto &conn : _connections) {
-      auto &w = _weights.emplace_front();
-      w.first = Random::normal(0.0, 0.5);
+      auto &w = _weights.emplace_back();
+      w.first = Random::init();
       w.second.insert(&conn);
       conn.weight = &w;
     }

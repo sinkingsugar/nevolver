@@ -32,6 +32,41 @@ public:
 
 class Network {
 public:
+  Network() = default;
+
+  Network(const Network &other) = delete;
+  Network &operator=(const Network &other) = delete;
+
+  Network(Network &&other)
+      : _crossoverScore(other._crossoverScore), _fitness(other._fitness) {
+    _inputs.swap(other._inputs);
+    _outputs.swap(other._outputs);
+    _sortedNodes.swap(other._sortedNodes);
+    _activeConns.swap(other._activeConns);
+    _nodes.swap(other._nodes);
+    _connections.swap(other._connections);
+    _weights.swap(other._weights);
+    _unusedNodes.swap(other._unusedNodes);
+    _unusedConns.swap(other._unusedConns);
+    _unusedWeights.swap(other._unusedWeights);
+  }
+
+  Network &operator=(Network &&other) {
+    _inputs.swap(other._inputs);
+    _outputs.swap(other._outputs);
+    _sortedNodes.swap(other._sortedNodes);
+    _activeConns.swap(other._activeConns);
+    _nodes.swap(other._nodes);
+    _connections.swap(other._connections);
+    _weights.swap(other._weights);
+    _unusedNodes.swap(other._unusedNodes);
+    _unusedConns.swap(other._unusedConns);
+    _unusedWeights.swap(other._unusedWeights);
+    _crossoverScore = other._crossoverScore;
+    _fitness = other._fitness;
+    return *this;
+  }
+
   ~Network() { LOG(TRACE) << "Network destroy."; }
 
   template <typename SomeFloat, typename SomeFloatVector>
@@ -160,7 +195,7 @@ public:
       if (!weight.second.empty()) {
         auto chance = Random::nextDouble();
         if (chance < weight_rate) {
-          weight.first += Random::normal(0.0, 0.1);
+          weight.first += Random::adjust();
         }
       }
     }
@@ -209,7 +244,7 @@ public:
       auto &mainnode = mainnet._sortedNodes[i].get();
       auto mainIsOutput =
           std::visit([](auto &&n) { return n.isOutput(); }, mainnode);
-      auto &newNode = res._nodes.emplace_front();
+      auto &newNode = res._nodes.emplace_back();
       res._sortedNodes.emplace_back(newNode);
       if (mainnode.index() == 0 || mainIsOutput) {
         // if input or output use main as it's the closest architecture
@@ -316,10 +351,11 @@ public:
     }
 
     auto widx = 0;
+    const auto nsize = res._sortedNodes.size();
     for (auto &conn : connections) {
       auto &nc = res.connect(res._sortedNodes[conn.fidx].get(),
                              res._sortedNodes[conn.tidx].get());
-      if (conn.conn->gater) {
+      if (conn.conn->gater && conn.gidx < nsize) {
         res.gate(res._sortedNodes[conn.gidx].get(), nc);
       }
       nc.weight = &res._weights[widx];
@@ -328,6 +364,9 @@ public:
     }
 
     LOG(TRACE) << "Network crossover end.";
+
+    // sanity on the first input node
+    assert(&res._sortedNodes[0].get() == &res._nodes[0]);
 
     return res;
   }
@@ -377,7 +416,7 @@ public:
     ar(nodes, weights, conns, inputs);
 
     for (auto &node : nodes) {
-      auto &nref = _nodes.emplace_front(node);
+      auto &nref = _nodes.emplace_back(node);
       _sortedNodes.emplace_back(nref);
       if (((Node *)&nref)->isOutput()) {
         _outputs.emplace_back(nref);
@@ -389,7 +428,7 @@ public:
                         _sortedNodes[conn.toIdx].get());
       if (conn.hasGater)
         gate(_sortedNodes[conn.gaterIdx].get(), c);
-      auto &w = _weights.emplace_front();
+      auto &w = _weights.emplace_back();
       w.first = weights[conn.weightIdx];
       w.second.insert(&c);
       c.weight = &w;
@@ -554,7 +593,7 @@ protected:
       _unusedConns.pop_back();
       conn = &_connections[cidx];
     } else {
-      conn = &_connections.emplace_front();
+      conn = &_connections.emplace_back();
     }
     conn->from = (Node *)&from;
     conn->to = (Node *)&to;
@@ -811,7 +850,7 @@ protected:
         _unusedNodes.pop_back();
         newNode = &_nodes[nidx];
       } else {
-        newNode = &_nodes.emplace_front();
+        newNode = &_nodes.emplace_back();
       }
 
       // init and mutate new node
@@ -848,9 +887,9 @@ protected:
         _unusedWeights.pop_back();
         w1 = &_weights[widx];
       } else {
-        w1 = &_weights.emplace_front();
+        w1 = &_weights.emplace_back();
       }
-      w1->first = Random::normal(0.0, 1.0);
+      w1->first = Random::init();
       w1->second.insert(&c1);
       c1.weight = w1;
 
@@ -860,9 +899,9 @@ protected:
         _unusedWeights.pop_back();
         w2 = &_weights[widx];
       } else {
-        w2 = &_weights.emplace_front();
+        w2 = &_weights.emplace_back();
       }
-      w2->first = Random::normal(0.0, 1.0);
+      w2->first = Random::init();
       w2->second.insert(&c2);
       c2.weight = w2;
     } break;
@@ -929,9 +968,9 @@ protected:
         _unusedWeights.pop_back();
         w = &_weights[widx];
       } else {
-        w = &_weights.emplace_front();
+        w = &_weights.emplace_back();
       }
-      w->first = Random::normal(0.0, 1.0);
+      w->first = Random::init();
       w->second.insert(&conn);
       conn.weight = w;
     } break;
