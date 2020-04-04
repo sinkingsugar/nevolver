@@ -281,11 +281,23 @@ inline bool any(NeuroInt pred) {
   return false;
 }
 
+inline bool all(NeuroInt pred) {
+  for (auto i = 0; i < vector_width; i++) {
+    if (pred.vec[i] != 0)
+      return false;
+  }
+  return true;
+}
+
 template <class F>
-inline NeuroFloat::ValueType reduce(F &&f, const NeuroFloat &vec) {
-  NeuroFloat::ValueType res = 0.0;
+inline NeuroFloat::ValueType reduce(F &&f, const NeuroFloat &vec,
+                                    const NeuroFloat::ValueType init = 0.0) {
+  NeuroFloat::ValueType res = init;
   for (auto i = 0; i < NeuroFloat::Width; i++) {
-    res = f(res, vec.vec[i]);
+    auto v = f(res, vec.vec[i]);
+    // trick to avoid nans
+    // TODO profile if it's worth it
+    res = v == v ? v : res;
   }
   return res;
 }
@@ -304,6 +316,18 @@ inline NeuroFloat::ValueType logSumExp(const NeuroFloat &vec) {
   auto e = std::exp(vec);
   auto s = reduce(std::plus<NeuroFloat::ValueType>(), e);
   return std::log(s);
+}
+
+inline NeuroFloat::ValueType meanGeometric(const NeuroFloat &vec) {
+  return std::pow(reduce(std::multiplies<NeuroFloat::ValueType>(), vec, 1.0),
+                  NeuroFloat::ValueType(1.0) /
+                      NeuroFloat::ValueType(NeuroFloat::Width));
+}
+
+inline NeuroFloat::ValueType meanHarmonic(const NeuroFloat &vec) {
+  auto r = 1.0 / vec;
+  auto x = reduce(std::plus<NeuroFloat::ValueType>(), r);
+  return NeuroFloat::ValueType(NeuroFloat::Width) / x;
 }
 
 #else
@@ -327,8 +351,11 @@ inline NeuroFloat logSumExp(const NeuroFloat &single) { return single; }
 #if 0
 
 int main(int argc, char** argv) {
-  NeuroFloat x(10);
-  std::cout << logSumExp(x) << "\n";
+  std::vector<float> xx = {0.7, 0.7, 0.99, 0.97};
+  NeuroFloat x(xx);
+  std::cout << mean(x) << "\n";
+  std::cout << meanGeometric(x) << "\n";
+  std::cout << meanHarmonic(x) << "\n";
 }
 
 #endif

@@ -55,10 +55,10 @@ TEST_CASE("MLP SGD training and serialize", "[perceptron1]") {
     Nevolver::Network perceptron2;
     ia(perceptron2);
 
-    REQUIRE(perceptron2.activate({0.0, 0.0})[0] == MyApprox(res1));
-    REQUIRE(perceptron2.activate({0.0, 1.0})[0] == MyApprox(res2));
-    REQUIRE(perceptron2.activate({1.0, 0.0})[0] == MyApprox(res3));
-    REQUIRE(perceptron2.activate({1.0, 1.0})[0] == MyApprox(res4));
+    REQUIRE(all(perceptron2.activate({0.0, 0.0})[0] == res1));
+    REQUIRE(all(perceptron2.activate({0.0, 1.0})[0] == res2));
+    REQUIRE(all(perceptron2.activate({1.0, 0.0})[0] == res3));
+    REQUIRE(all(perceptron2.activate({1.0, 1.0})[0] == res4));
   }
 }
 
@@ -134,6 +134,21 @@ TEST_CASE("LSTM test vectors", "[lstmv]") {
     } catch (...) {
     }
   }
+
+  auto r1 = lstm.activate({1.0, 0.0})[0];
+  auto r2 = lstm.activate({0.0, 0.0})[0];
+  auto r3 = lstm.activate({0.0, 1.0})[0];
+  auto r4 = lstm.activate({1.0, 1.0})[0];
+
+  lstm.clear();
+
+  REQUIRE(all(lstm.activateFast({1.0, 0.0})[0] == r1));
+  REQUIRE(all(lstm.activateFast({0.0, 0.0})[0] == r2));
+  REQUIRE(all(lstm.activateFast({0.0, 1.0})[0] == r3));
+  REQUIRE(all(lstm.activateFast({1.0, 1.0})[0] == r4));
+
+  // finally test with vectors
+  lstm.clear();
 
   REQUIRE(lstm.activate({1.0, 0.0})[0] == MyApprox(0.7021348896263643));
   lstm.propagate({1.0});
@@ -297,12 +312,12 @@ TEST_CASE("LSTM SGD training", "[lstm1]") {
     ia(lstm2);
 
     std::cout << "LSTM1: \n";
-    std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-    std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-    std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
-    std::cout << lstm2.activate({1.0})[0] << " (0.0)\n";
-    std::cout << lstm2.activate({0.0})[0] << " (0.0)\n";
-    std::cout << lstm2.activate({0.0})[0] << " (1.0)\n";
+    std::cout << mean(lstm2.activate({0.0})[0]) << " (0.0)\n";
+    std::cout << mean(lstm2.activate({0.0})[0]) << " (0.0)\n";
+    std::cout << mean(lstm2.activate({0.0})[0]) << " (1.0)\n";
+    std::cout << mean(lstm2.activate({1.0})[0]) << " (0.0)\n";
+    std::cout << mean(lstm2.activate({0.0})[0]) << " (0.0)\n";
+    std::cout << mean(lstm2.activate({0.0})[0]) << " (1.0)\n";
   }
 }
 

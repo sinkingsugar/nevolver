@@ -368,6 +368,15 @@ struct Activate : public NetworkConsumer {
   }
 };
 
+struct Predict final : public Activate {
+  CBVar activate(CBContext *context, const CBVar &input) {
+    // NO-Copy activate
+    NeuroVars in(input);
+    _netRef->activateFast(in, _outputCache);
+    return NeuroSeq(_outputCache);
+  }
+};
+
 struct Propagate : public NetworkConsumer {
   CBParametersInfo parameters() { return PropParams; }
 
@@ -473,6 +482,7 @@ struct MLPBlock final : public NetworkProducer {
 namespace chainblocks {
 void registerBlocks() {
   REGISTER_CBLOCK("Nevolver.Activate", Nevolver::Activate);
+  REGISTER_CBLOCK("Nevolver.Predict", Nevolver::Predict);
   REGISTER_CBLOCK("Nevolver.Propagate", Nevolver::Propagate);
   REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
 
