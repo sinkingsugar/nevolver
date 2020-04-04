@@ -207,14 +207,14 @@ struct NeuroSeq : public CBVar {
 };
 
 static Type IntType{{CBType::Int}};
-static Type IntSeq{{CBType::Seq, .seqTypes = IntType}};
+static Type IntSeq{{CBType::Seq, {.seqTypes = IntType}}};
 static Type AnyType{{CBType::Any}};
 static Type StringType{{CBType::String}};
 static Type FloatType{{CBType::Float}};
-static Type FloatSeq{{CBType::Seq, .seqTypes = FloatType}};
+static Type FloatSeq{{CBType::Seq, {.seqTypes = FloatType}}};
 static Type NetType{
-    {CBType::Object, .object = {SharedNetwork::Vendor, SharedNetwork::Type}}};
-static Type NetVarType{{CBType::ContextVar, .contextVarTypes = NetType}};
+    {CBType::Object, {.object = {SharedNetwork::Vendor, SharedNetwork::Type}}}};
+static Type NetVarType{{CBType::ContextVar, {.contextVarTypes = NetType}}};
 
 static Parameters CommonParams{
     {"Name", "The network model variable.", {NetVarType, StringType}}};
