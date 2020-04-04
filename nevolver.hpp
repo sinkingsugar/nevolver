@@ -1,7 +1,7 @@
 #ifndef NEVOLVER_H
 #define NEVOLVER_H
 
-#define NEVOLVER_WIDE 16
+#define NEVOLVER_WIDE 4
 
 #include "random.hpp"
 #include <cassert>

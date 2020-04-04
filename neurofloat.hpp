@@ -346,6 +346,8 @@ inline NeuroFloat mean(const NeuroFloat &single) { return single; }
 
 inline NeuroFloat logSumExp(const NeuroFloat &single) { return single; }
 
+inline bool all(bool pred) { return pred; }
+
 #endif
 
 #if 0
