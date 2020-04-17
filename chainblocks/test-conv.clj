@@ -1,4 +1,4 @@
-(import "../build/libcbnevolver.dll")
+(import "../build2/libcbnevolver.dll")
 
 (def Root (Node))
 
@@ -20,9 +20,9 @@
    (StripAlpha)
    (Ref .subject)
                                         ; build the network
-   (Nevolver.MLP .mlp
+   (Nevolver.NARX .mlp
                  :Inputs (* 3 (* 3 3))
-                 :Hidden 15
+                 :Hidden 8
                  :Outputs 3)
                                         ; train it
    (Repeat (-->
@@ -35,7 +35,7 @@
             (Convolve 1 2)
             (ImageToFloats)
             (Nevolver.Propagate .mlp))
-           (* 10 npixels))
+           (* 100 npixels))
                                         ; use it
    (Repeat
     (-->

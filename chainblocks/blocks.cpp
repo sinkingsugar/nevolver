@@ -1,5 +1,6 @@
 #include "../network.hpp"
 #include "../networks/mlp.hpp"
+#include "../networks/narx.hpp"
 
 // order matters!
 INITIALIZE_EASYLOGGINGPP
@@ -231,6 +232,15 @@ static Parameters MlpParams{
       "The number of hidden nodes, can be a sequence for multiple layers.",
       {{IntType, IntSeq}}},
      {"Outputs", "The number of output nodes.", {IntType}}}};
+static Parameters NarxParams{
+    CommonParams,
+    {{"Inputs", "The number of input nodes.", {IntType}},
+     {"Hidden",
+      "The number of hidden nodes, can be a sequence for multiple layers.",
+      {{IntType, IntSeq}}},
+     {"Outputs", "The number of output nodes.", {IntType}},
+     {"InputMemory", "The number of inputs to memorize.", {IntType}},
+     {"OutputMemory", "The number of outputs to memorize.", {IntType}}}};
 
 // Problems
 // We want to train this with genetic
@@ -456,7 +466,7 @@ struct MLPBlock final : public NetworkProducer {
     case 3:
       return Var(_outputs);
     default:
-      return CBVar();
+      return Var::Empty();
     }
   }
 
@@ -477,6 +487,75 @@ struct MLPBlock final : public NetworkProducer {
     _netRef = std::make_shared<MLP>(_inputs, hiddens, _outputs);
   }
 };
+
+struct NARXBlock final : public NetworkProducer {
+  CBParametersInfo parameters() { return NarxParams; }
+
+  void setParam(int index, CBVar value) {
+    switch (index) {
+    case 0:
+      NetworkUser::setParam(index, value);
+      break;
+    case 1:
+      _inputs = int(value.payload.intValue);
+      break;
+    case 2:
+      _hidden = value;
+      break;
+    case 3:
+      _outputs = int(value.payload.intValue);
+      break;
+    case 4:
+      _inputMem = int(value.payload.intValue);
+      break;
+    case 5:
+      _outputMem = int(value.payload.intValue);
+      break;
+    default:
+      break;
+    }
+  }
+
+  CBVar getParam(int index) {
+    switch (index) {
+    case 0:
+      return NetworkUser::getParam(index);
+    case 1:
+      return Var(_inputs);
+    case 2:
+      return Var(_hidden);
+      break;
+    case 3:
+      return Var(_outputs);
+    case 4:
+      return Var(_inputMem);
+    case 5:
+      return Var(_outputMem);
+    default:
+      return Var::Empty();
+    }
+  }
+
+  int _inputs = 2;
+  OwnedVar _hidden{Var(4)};
+  int _outputs = 1;
+  int _inputMem = 2;
+  int _outputMem = 2;
+
+  void resetState() override {
+    std::vector<int> hiddens;
+    if (_hidden.valueType == Int) {
+      hiddens.push_back(int(_hidden.payload.intValue));
+    } else if (_hidden.valueType == Seq) {
+      IterableSeq s(_hidden);
+      for (auto &n : s) {
+        hiddens.push_back(int(n.payload.intValue));
+      }
+    }
+    _netRef = std::make_shared<NARX>(_inputs, hiddens, _outputs, _inputMem,
+                                     _outputMem);
+  }
+};
 }; // namespace Nevolver
 
 namespace chainblocks {
@@ -485,6 +564,7 @@ void registerBlocks() {
   REGISTER_CBLOCK("Nevolver.Predict", Nevolver::Predict);
   REGISTER_CBLOCK("Nevolver.Propagate", Nevolver::Propagate);
   REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
+  REGISTER_CBLOCK("Nevolver.NARX", Nevolver::NARXBlock);
 
   // TODO
   // Add .Clear block
