@@ -217,6 +217,14 @@ public:
                     double(b));
   }
 
+  static Node *getNodePtr(AnyNode &node) {
+    return std::visit([](auto &&n) { return (Node *)&n; }, node);
+  }
+
+  static Node *getNodePtr(std::reference_wrapper<AnyNode> &node) {
+    return std::visit([](auto &&n) { return (Node *)&n; }, node.get());
+  }
+
   static Network crossover(const Network &net1, const Network &net2) {
     LOG(TRACE) << "Network crossover start...";
 
@@ -293,14 +301,14 @@ public:
         std::unordered_map<const Node *, uint64_t> nodeMap1;
         uint64_t idx = 0;
         for (auto &node : net1._sortedNodes) {
-          nodeMap1.emplace((Node *)&node.get(), idx);
+          nodeMap1.emplace(getNodePtr(node), idx);
           idx++;
         }
 
         std::unordered_map<const Node *, uint64_t> nodeMap2;
         idx = 0;
         for (auto &node : net2._sortedNodes) {
-          nodeMap2.emplace((Node *)&node.get(), idx);
+          nodeMap2.emplace(getNodePtr(node), idx);
           idx++;
         }
 
@@ -379,7 +387,7 @@ public:
 
     uint64_t idx = 0;
     for (auto &node : _sortedNodes) {
-      nodeMap.emplace((Node *)&node.get(), idx);
+      nodeMap.emplace(getNodePtr(node), idx);
       nodes.emplace_back(node.get());
       idx++;
     }
@@ -418,7 +426,7 @@ public:
     for (auto &node : nodes) {
       auto &nref = _nodes.emplace_back(node);
       _sortedNodes.emplace_back(nref);
-      if (((Node *)&nref)->isOutput()) {
+      if (getNodePtr(nref)->isOutput()) {
         _outputs.emplace_back(nref);
       }
     }
@@ -498,7 +506,7 @@ public:
     if (node.index() == 0)
       return ++nit; // don't remove inputs
 
-    const Node *nptr = (Node *)&node;
+    const Node *nptr = getNodePtr(node);
 
     if (nptr->isOutput())
       return ++nit; // don't remove outputs
@@ -523,7 +531,7 @@ public:
 
 protected:
   void cleanupNode(AnyNode &node) {
-    const Node *nptr = (Node *)&node;
+    const Node *nptr = getNodePtr(node);
     std::vector<Connection *> conns;
 
     // gates
@@ -560,7 +568,7 @@ protected:
     if (node.index() == 0)
       return ++nit; // don't remove inputs
 
-    const Node *nptr = (Node *)&node;
+    const Node *nptr = getNodePtr(node);
 
     if (nptr->isOutput())
       return ++nit; // don't remove outputs
@@ -595,8 +603,8 @@ protected:
     } else {
       conn = &_connections.emplace_back();
     }
-    conn->from = (Node *)&from;
-    conn->to = (Node *)&to;
+    conn->from = getNodePtr(from);
+    conn->to = getNodePtr(to);
     conn->gater = nullptr;
 
     if (conn->from->isInput() && conn->to->isInput()) {
@@ -732,7 +740,7 @@ protected:
     auto it = _connections.begin();
     while (it != _connections.end()) {
       auto &conn = *it;
-      if (conn.from == (Node *)&from && conn.to == (Node *)&to) {
+      if (conn.from == getNodePtr(from) && conn.to == getNodePtr(to)) {
         it = disconnect(it);
       } else {
         ++it;
@@ -754,11 +762,11 @@ protected:
   }
 
   bool isConnected(AnyNode &from, AnyNode &to) {
-    return isConnected((Node *)&from, (Node *)&to);
+    return isConnected(getNodePtr(from), getNodePtr(to));
   }
 
   void gate(AnyNode &gater, Connection &conn) {
-    conn.gater = (Node *)&gater;
+    conn.gater = getNodePtr(gater);
     std::visit([&conn](auto &&node) { node.addGate(conn); }, gater);
   }
 
@@ -839,7 +847,7 @@ protected:
       // store to node position
       auto pos =
           std::find_if(std::begin(_sortedNodes), std::end(_sortedNodes),
-                       [&](auto &&n) { return (Node *)&n.get() == conn.to; });
+                       [&](auto &&n) { return getNodePtr(n) == conn.to; });
 
       disconnect(conn);
 
@@ -934,8 +942,8 @@ protected:
              ++fit) {
           for (auto tit = fit; tit != _sortedNodes.end(); ++tit) {
             if (!isConnected(*fit, *tit)) {
-              auto fn = (Node *)&(*fit).get();
-              auto tn = (Node *)&(*tit).get();
+              auto fn = getNodePtr(*fit);
+              auto tn = getNodePtr(*tit);
               if (!fn->isInput() || !tn->isInput())
                 _availConns.emplace_back(*fit, *tit);
             }
@@ -946,8 +954,8 @@ protected:
              ++fit) {
           for (auto tit = fit; tit != _sortedNodes.rend(); ++tit) {
             if (!isConnected(*fit, *tit)) {
-              auto fn = (Node *)&(*fit).get();
-              auto tn = (Node *)&(*tit).get();
+              auto fn = getNodePtr(*fit);
+              auto tn = getNodePtr(*tit);
               if (!fn->isInput() || !tn->isInput())
                 _availConns.emplace_back(*fit, *tit);
             }
