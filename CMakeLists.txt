@@ -64,6 +64,10 @@ set(CMAKE_CXX_FLAGS_UBSAN
   FORCE)
 ### SANITIZERS
 
+if (NOT DEFINED CHAINBLOCKS_DIR)
+  set(CHAINBLOCKS_DIR "${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks")
+endif()
+
 #### Files to format and tidy
 set(
   MY_PROJECT_SOURCE_FILES
@@ -88,9 +92,10 @@ set(
   MY_PROJECT_HEADER_PATHS
   ${MY_PROJECT_HEADER_PATHS}
   -I${CMAKE_CURRENT_LIST_DIR}
+  -I${CHAINBLOCKS_DIR}/include
+  -I${CHAINBLOCKS_DIR}/deps/magic_enum/include
+  -I${CHAINBLOCKS_DIR}/deps/cpp-taskflow
   -I${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
-  -I${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/include
-  -I${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/deps/magic_enum/include
   -I${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
   -I${CMAKE_CURRENT_LIST_DIR}/deps/Catch2/single_include
   )
@@ -161,8 +166,9 @@ if(APPLE)
 endif()
 
 include_directories(
-  ${CMAKE_CURRENT_LIST_DIR}/../automa/chainblocks/include
-  ${CMAKE_CURRENT_LIST_DIR}/deps/chainblocks/deps/magic_enum/include
+  ${CHAINBLOCKS_DIR}/include
+  ${CHAINBLOCKS_DIR}/deps/cpp-taskflow
+  ${CHAINBLOCKS_DIR}/deps/magic_enum/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
   ${CMAKE_CURRENT_LIST_DIR}/deps/Catch2/single_include
