@@ -10,7 +10,8 @@
                          :Hidden 4
                          :Outputs 1))
           (Const [0.0 1.0])
-          (Nevolver.Activate .mlp)))
+          (Nevolver.Predict .mlp)
+          (Log)))
 
 (def fitness
   (Chain
@@ -29,14 +30,28 @@
     (Evolve
      mlp
      fitness
-     :Population 10000
+     :Population 1000
      :Coroutines 100)
-    (Log)
-    (Ref "best"))
-   15)
-  (Get "best")
+    (Log) &> .best)
+   2)
+  .best
   (Log)
+  (Take 1) >= .chain
+  (WriteFile "best.nn")
+  (ChainRunner .chain)
   ))
 
+(run Root 0.1)
+(prn "Done")
+
+(def testLoad
+  (Chain
+   "loadNN"
+   (ReadFile "best.nn")
+   (ExpectChain) >= .chain
+   (ChainRunner .chain)
+   ))
+
+(schedule Root testLoad)
 (run Root 0.1)
 (prn "Done")

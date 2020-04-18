@@ -380,11 +380,22 @@ struct Activate : public NetworkConsumer {
 };
 
 struct Predict final : public Activate {
+
   CBVar activate(CBContext *context, const CBVar &input) {
     // NO-Copy activate
     NeuroVars in(input);
     _netRef->activateFast(in, _outputCache);
     return NeuroSeq(_outputCache);
+  }
+};
+
+struct Clear final : public NetworkConsumer {
+  static CBTypesInfo inputTypes() { return AnyType; }
+  static CBTypesInfo outputTypes() { return AnyType; }
+
+  CBVar activate(CBContext *context, const CBVar &input) {
+    _netRef->clear();
+    return input;
   }
 };
 
@@ -664,16 +675,17 @@ struct LSTMBlock final : public NetworkProducer {
 
 namespace chainblocks {
 void registerBlocks() {
+  Core::registerObjectType(Nevolver::SharedNetwork::Vendor,
+                           Nevolver::SharedNetwork::Type,
+                           Nevolver::SharedNetwork::ObjInfo);
   REGISTER_CBLOCK("Nevolver.Activate", Nevolver::Activate);
   REGISTER_CBLOCK("Nevolver.Predict", Nevolver::Predict);
   REGISTER_CBLOCK("Nevolver.Propagate", Nevolver::Propagate);
+  REGISTER_CBLOCK("Nevolver.Clear", Nevolver::Clear);
   REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
   REGISTER_CBLOCK("Nevolver.NARX", Nevolver::NARXBlock);
   REGISTER_CBLOCK("Nevolver.LSTM", Nevolver::LSTMBlock);
   REGISTER_CBLOCK("Nevolver.Liquid", Nevolver::LiquidBlock);
-
-  // TODO
-  // Add .Clear block
 }
 } // namespace chainblocks
 

@@ -384,32 +384,35 @@ public:
   void save(Archive &ar, std::uint32_t const version) const {
     std::unordered_map<const Node *, uint64_t> nodeMap;
     std::vector<AnyNode> nodes;
+    std::vector<uint64_t> inputs;
+    std::vector<ConnectionInfo> conns;
     std::vector<NeuroFloat> weights;
 
     uint64_t idx = 0;
     for (auto &node : _sortedNodes) {
-      nodeMap.emplace(getNodePtr(node), idx);
+      nodeMap.emplace(getNodePtr(node), idx++);
       nodes.emplace_back(node.get());
-      idx++;
     }
 
     std::unordered_map<const Weight *, uint64_t> wMap;
     idx = 0;
     for (auto &w : _weights) {
-      wMap.emplace(&w, idx);
+      wMap.emplace(&w, idx++);
       weights.push_back(w.first);
-      idx++;
+      LOG(INFO) << "Weight " << w.first;
     }
 
-    std::vector<ConnectionInfo> conns;
     for (auto &conn : _connections) {
+      LOG(INFO) << "Saving " << nodeMap[conn.from] << " -> " << nodeMap[conn.to]
+                << " g " << nodeMap[conn.gater] << " w " << wMap[conn.weight]
+                << " hg " << (conn.gater != nullptr);
       conns.push_back({nodeMap[conn.from], nodeMap[conn.to],
                        conn.gater != nullptr, nodeMap[conn.gater],
                        wMap[conn.weight]});
     }
 
-    std::vector<uint64_t> inputs;
     for (auto &inp : _inputs) {
+      LOG(INFO) << "Input " << nodeMap[&inp.get()];
       inputs.emplace_back(nodeMap[&inp.get()]);
     }
 
@@ -432,19 +435,28 @@ public:
       }
     }
 
+    for (auto idx : inputs) {
+      LOG(INFO) << "Input " << idx;
+      _inputs.emplace_back(std::get<InputNode>(_sortedNodes[idx].get()));
+    }
+
+    for (auto &wval : weights) {
+      auto &w = _weights.emplace_back();
+      w.first = wval;
+      LOG(INFO) << "Weight " << wval;
+    }
+
     for (auto &conn : conns) {
+      LOG(INFO) << "Loading " << conn.fromIdx << " -> " << conn.toIdx << " g "
+                << conn.gaterIdx << " w " << conn.weightIdx << " hg "
+                << conn.hasGater;
       auto &c = connect(_sortedNodes[conn.fromIdx].get(),
                         _sortedNodes[conn.toIdx].get());
       if (conn.hasGater)
         gate(_sortedNodes[conn.gaterIdx].get(), c);
-      auto &w = _weights.emplace_back();
-      w.first = weights[conn.weightIdx];
+      auto &w = _weights[conn.weightIdx];
       w.second.insert(&c);
       c.weight = &w;
-    }
-
-    for (auto idx : inputs) {
-      _inputs.emplace_back(std::get<InputNode>(_sortedNodes[idx].get()));
     }
   }
 

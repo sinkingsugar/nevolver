@@ -213,16 +213,22 @@ using DeriveFunc =
                  BipolarSigmoidD, HardTanhD, AbsoluteD, InverseD, SeluD>;
 
 struct Squash final {
-  const static inline std::array<SquashFunc, 16> funcs{
+  const static inline std::array<SquashFunc, 16> SFuncs{
       IdentityS(),  SigmoidS(),      TanhS(),     ReluS(),
       LeakyReluS(), StepS(),         SoftsignS(), SinS(),
       GaussianS(),  BentIdentityS(), BipolarS(),  BipolarSigmoidS(),
       HardTanhS(),  AbsoluteS(),     InverseS(),  SeluS()};
 
-  static const SquashFunc &random() {
-    auto idx = Random::nextUInt() % funcs.size();
-    assert(idx < funcs.size());
-    return funcs[idx];
+  const static inline std::array<DeriveFunc, 16> DFuncs{
+      IdentityD(),  SigmoidD(),      TanhD(),     ReluD(),
+      LeakyReluD(), StepD(),         SoftsignD(), SinD(),
+      GaussianD(),  BentIdentityD(), BipolarD(),  BipolarSigmoidD(),
+      HardTanhD(),  AbsoluteD(),     InverseD(),  SeluD()};
+
+  static const std::pair<SquashFunc, DeriveFunc> random() {
+    auto idx = Random::nextUInt() % SFuncs.size();
+    assert(idx < SFuncs.size());
+    return std::make_pair(SFuncs[idx], DFuncs[idx]);
   }
 };
 } // namespace Nevolver

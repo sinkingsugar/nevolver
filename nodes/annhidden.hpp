@@ -203,7 +203,9 @@ public:
   void doMutate(NodeMutations mutation) {
     switch (mutation) {
     case NodeMutations::Squash: {
-      _squash = Squash::random();
+      auto funcs = Squash::random();
+      _squash = funcs.first;
+      _derive = funcs.second;
     } break;
     case NodeMutations::Bias: {
       _bias += Random::adjust();
