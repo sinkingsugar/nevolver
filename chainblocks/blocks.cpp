@@ -1,4 +1,5 @@
 #include "../network.hpp"
+#include "../networks/lstm.hpp"
 #include "../networks/mlp.hpp"
 #include "../networks/narx.hpp"
 
@@ -147,16 +148,6 @@ struct NetVar final : public CBVar {
 
   NetVar() = default;
 
-  // explicit NetVar(const std::shared_ptr<Network> &net) : CBVar() {
-  //   valueType = CBType::Object;
-  //   // notice that new SharedNetwork sets refcount to 1
-  //   payload.objectValue = new SharedNetwork(net);
-  //   payload.objectVendorId = SharedNetwork::Vendor;
-  //   payload.objectTypeId = SharedNetwork::Type;
-  //   objectInfo = &SharedNetwork::ObjInfo;
-  //   flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
-  // }
-
   explicit NetVar(const CBVar &other) : CBVar() {
     // Notice that we don't addRef here
     // as we mostly use the shared pointer behind it
@@ -186,6 +177,10 @@ struct NeuroVar final : public CBVar {
     valueType = Float;
     // TODO other cases were we want actual vectors
     // when compiled as WIDE
+    // Also accept Ints, for example a CB Int8 is 16 bytes
+    // perfectly useful if assumed to be a image input
+    // we can directly on implicit conversion normalize /255
+    // and use Wide 16!
     payload.floatValue = mean(f);
   }
 
@@ -556,6 +551,62 @@ struct NARXBlock final : public NetworkProducer {
                                      _outputMem);
   }
 };
+
+struct LSTMBlock final : public NetworkProducer {
+  CBParametersInfo parameters() { return MlpParams; }
+
+  void setParam(int index, CBVar value) {
+    switch (index) {
+    case 0:
+      NetworkUser::setParam(index, value);
+      break;
+    case 1:
+      _inputs = int(value.payload.intValue);
+      break;
+    case 2:
+      _hidden = value;
+      break;
+    case 3:
+      _outputs = int(value.payload.intValue);
+      break;
+    default:
+      break;
+    }
+  }
+
+  CBVar getParam(int index) {
+    switch (index) {
+    case 0:
+      return NetworkUser::getParam(index);
+    case 1:
+      return Var(_inputs);
+    case 2:
+      return Var(_hidden);
+      break;
+    case 3:
+      return Var(_outputs);
+    default:
+      return Var::Empty();
+    }
+  }
+
+  int _inputs = 2;
+  OwnedVar _hidden{Var(4)};
+  int _outputs = 1;
+
+  void resetState() override {
+    std::vector<int> hiddens;
+    if (_hidden.valueType == Int) {
+      hiddens.push_back(int(_hidden.payload.intValue));
+    } else if (_hidden.valueType == Seq) {
+      IterableSeq s(_hidden);
+      for (auto &n : s) {
+        hiddens.push_back(int(n.payload.intValue));
+      }
+    }
+    _netRef = std::make_shared<LSTM>(_inputs, hiddens, _outputs);
+  }
+};
 }; // namespace Nevolver
 
 namespace chainblocks {
@@ -565,6 +616,7 @@ void registerBlocks() {
   REGISTER_CBLOCK("Nevolver.Propagate", Nevolver::Propagate);
   REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
   REGISTER_CBLOCK("Nevolver.NARX", Nevolver::NARXBlock);
+  REGISTER_CBLOCK("Nevolver.LSTM", Nevolver::LSTMBlock);
 
   // TODO
   // Add .Clear block
