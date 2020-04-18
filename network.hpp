@@ -14,6 +14,7 @@ enum class NetworkMutations {
   SwapNodes,
   AddGate,
   SubGate,
+  Total
 };
 
 template <typename T> class VectorSet : public std::vector<T> {
@@ -1075,6 +1076,8 @@ protected:
       auto &conn = *_gated[ridx];
       ungate(*((AnyNode *)conn.gater), conn);
     } break;
+    default:
+      break;
     }
   }
 

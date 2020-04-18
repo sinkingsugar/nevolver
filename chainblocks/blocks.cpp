@@ -1,4 +1,5 @@
 #include "../network.hpp"
+#include "../networks/liquid.hpp"
 #include "../networks/lstm.hpp"
 #include "../networks/mlp.hpp"
 #include "../networks/narx.hpp"
@@ -226,6 +227,11 @@ static Parameters MlpParams{
      {"Hidden",
       "The number of hidden nodes, can be a sequence for multiple layers.",
       {{IntType, IntSeq}}},
+     {"Outputs", "The number of output nodes.", {IntType}}}};
+static Parameters LiquidParams{
+    CommonParams,
+    {{"Inputs", "The number of input nodes.", {IntType}},
+     {"Hidden", "The number of max starting hidden nodes.", {{IntType}}},
      {"Outputs", "The number of output nodes.", {IntType}}}};
 static Parameters NarxParams{
     CommonParams,
@@ -483,6 +489,53 @@ struct MLPBlock final : public NetworkProducer {
   }
 };
 
+struct LiquidBlock final : public NetworkProducer {
+  CBParametersInfo parameters() { return MlpParams; }
+
+  void setParam(int index, CBVar value) {
+    switch (index) {
+    case 0:
+      NetworkUser::setParam(index, value);
+      break;
+    case 1:
+      _inputs = int(value.payload.intValue);
+      break;
+    case 2:
+      _hidden = int(value.payload.intValue);
+      break;
+    case 3:
+      _outputs = int(value.payload.intValue);
+      break;
+    default:
+      break;
+    }
+  }
+
+  CBVar getParam(int index) {
+    switch (index) {
+    case 0:
+      return NetworkUser::getParam(index);
+    case 1:
+      return Var(_inputs);
+    case 2:
+      return Var(_hidden);
+      break;
+    case 3:
+      return Var(_outputs);
+    default:
+      return Var::Empty();
+    }
+  }
+
+  int _inputs = 2;
+  int _hidden = 4;
+  int _outputs = 1;
+
+  void resetState() override {
+    _netRef = std::make_shared<Liquid>(_inputs, _hidden, _outputs);
+  }
+};
+
 struct NARXBlock final : public NetworkProducer {
   CBParametersInfo parameters() { return NarxParams; }
 
@@ -617,6 +670,7 @@ void registerBlocks() {
   REGISTER_CBLOCK("Nevolver.MLP", Nevolver::MLPBlock);
   REGISTER_CBLOCK("Nevolver.NARX", Nevolver::NARXBlock);
   REGISTER_CBLOCK("Nevolver.LSTM", Nevolver::LSTMBlock);
+  REGISTER_CBLOCK("Nevolver.Liquid", Nevolver::LiquidBlock);
 
   // TODO
   // Add .Clear block

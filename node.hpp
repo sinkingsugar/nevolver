@@ -5,7 +5,7 @@
 #include "nevolver.hpp"
 
 namespace Nevolver {
-enum class NodeMutations { Squash, Bias };
+enum class NodeMutations { Squash, Bias, Total };
 enum class NodeKind { Normal, Input, Output };
 
 class Node {

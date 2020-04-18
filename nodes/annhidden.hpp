@@ -208,6 +208,8 @@ public:
     case NodeMutations::Bias: {
       _bias += Random::adjust();
     } break;
+    default:
+      break;
     }
   }
 

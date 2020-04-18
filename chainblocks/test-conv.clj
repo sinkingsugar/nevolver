@@ -9,29 +9,24 @@
    "sgd"
                                         ; load resources
    (LoadImage "cat_texture.png")
-   (StripAlpha)
-   (Ref .filtered)
-
+   (StripAlpha) &> .filtered
    (LoadImage "cat.png")
-   (StripAlpha)
-   (Ref .unfiltered)
-
+   (StripAlpha) &> .unfiltered
    (LoadImage "cat_original.png")
-   (StripAlpha)
-   (Ref .subject)
+   (StripAlpha) &> .subject
                                         ; build the network
-   (Nevolver.NARX .mlp
+   (Nevolver.MLP .mlp
                  :Inputs (* 3 (* 3 3))
                  :Hidden 8
                  :Outputs 3)
                                         ; train it
    (Repeat (-->
-            (Get .unfiltered)
+            .unfiltered
             (Convolve 2 2)
             (ImageToFloats)
             (Nevolver.Activate .mlp)
 
-            (Get .filtered)
+            .filtered
             (Convolve 1 2)
             (ImageToFloats)
             (Nevolver.Propagate .mlp))
@@ -39,14 +34,13 @@
                                         ; use it
    (Repeat
     (-->
-     (Get .subject)
+     .subject
      (Convolve 2)
      (ImageToFloats)
-     (Nevolver.Predict .mlp)
-     (Push .final :Clear false))
+     (Nevolver.Predict .mlp) >>! .final)
     npixels)
                                         ; write result
-   (Get .final)
+   .final
    (Flatten)
    (FloatsToImage 128 128 3)
    (WritePNG "result.png")))
