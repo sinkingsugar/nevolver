@@ -1,4 +1,4 @@
-(import "../build/libcbnevolver.dll")
+(import "../build2/libcbnevolver.dll")
 
 (def Root (Node))
 
@@ -11,12 +11,12 @@
                          :Outputs 1))
           (Const [0.0 1.0])
           (Nevolver.Predict .mlp)
-          (Log)))
+          (Set .result :Global true)))
 
 (def fitness
   (Chain
    "fitness"
-   (Math.Subtract 1.0)
+   (Math.Subtract 2.0)
    (ToFloat)
    (Math.Abs)
    (Math.Multiply -1.0)))
@@ -30,15 +30,17 @@
     (Evolve
      mlp
      fitness
-     :Population 1000
-     :Coroutines 100)
+     :Population 100
+     :Coroutines 10)
     (Log) &> .best)
-   2)
+   20)
   .best
   (Log)
   (Take 1) >= .chain
   (WriteFile "best.nn")
   (ChainRunner .chain)
+  (Get .result :Default [-1.0])
+  (Log)
   ))
 
 (run Root 0.1)
@@ -50,6 +52,8 @@
    (ReadFile "best.nn")
    (ExpectChain) >= .chain
    (ChainRunner .chain)
+   (Get .result :Default [-1.0])
+   (Log)
    ))
 
 (schedule Root testLoad)

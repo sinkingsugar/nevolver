@@ -394,25 +394,30 @@ public:
       nodes.emplace_back(node.get());
     }
 
+    // from now on we will also ignore
+    // unused weights and connection slots
+
     std::unordered_map<const Weight *, uint64_t> wMap;
     idx = 0;
     for (auto &w : _weights) {
-      wMap.emplace(&w, idx++);
-      weights.push_back(w.first);
-      LOG(INFO) << "Weight " << w.first;
+      if (w.second.size() != 0) {
+        wMap.emplace(&w, idx++);
+        weights.push_back(w.first);
+        LOG(TRACE) << "Weight " << w.first;
+      }
     }
 
-    for (auto &conn : _connections) {
-      LOG(INFO) << "Saving " << nodeMap[conn.from] << " -> " << nodeMap[conn.to]
-                << " g " << nodeMap[conn.gater] << " w " << wMap[conn.weight]
-                << " hg " << (conn.gater != nullptr);
-      conns.push_back({nodeMap[conn.from], nodeMap[conn.to],
-                       conn.gater != nullptr, nodeMap[conn.gater],
-                       wMap[conn.weight]});
+    for (auto &conn : _activeConns) {
+      LOG(TRACE) << "Saving " << nodeMap[conn->from] << " -> "
+                 << nodeMap[conn->to] << " g " << nodeMap[conn->gater] << " w "
+                 << wMap[conn->weight] << " hg " << (conn->gater != nullptr);
+      conns.push_back({nodeMap[conn->from], nodeMap[conn->to],
+                       conn->gater != nullptr, nodeMap[conn->gater],
+                       wMap[conn->weight]});
     }
 
     for (auto &inp : _inputs) {
-      LOG(INFO) << "Input " << nodeMap[&inp.get()];
+      LOG(TRACE) << "Input " << nodeMap[&inp.get()];
       inputs.emplace_back(nodeMap[&inp.get()]);
     }
 
@@ -436,20 +441,20 @@ public:
     }
 
     for (auto idx : inputs) {
-      LOG(INFO) << "Input " << idx;
+      LOG(TRACE) << "Input " << idx;
       _inputs.emplace_back(std::get<InputNode>(_sortedNodes[idx].get()));
     }
 
     for (auto &wval : weights) {
       auto &w = _weights.emplace_back();
       w.first = wval;
-      LOG(INFO) << "Weight " << wval;
+      LOG(TRACE) << "Weight " << wval;
     }
 
     for (auto &conn : conns) {
-      LOG(INFO) << "Loading " << conn.fromIdx << " -> " << conn.toIdx << " g "
-                << conn.gaterIdx << " w " << conn.weightIdx << " hg "
-                << conn.hasGater;
+      LOG(TRACE) << "Loading " << conn.fromIdx << " -> " << conn.toIdx << " g "
+                 << conn.gaterIdx << " w " << conn.weightIdx << " hg "
+                 << conn.hasGater;
       auto &c = connect(_sortedNodes[conn.fromIdx].get(),
                         _sortedNodes[conn.toIdx].get());
       if (conn.hasGater)
