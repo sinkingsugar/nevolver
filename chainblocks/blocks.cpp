@@ -428,7 +428,7 @@ struct Propagate : public NetworkConsumer {
       return Var(_momentum);
       break;
     default:
-      return CBVar();
+      return Var::Empty;
     }
   }
 
@@ -478,7 +478,7 @@ struct MLPBlock final : public NetworkProducer {
     case 3:
       return Var(_outputs);
     default:
-      return Var::Empty();
+      return Var::Empty;
     }
   }
 
@@ -534,7 +534,7 @@ struct LiquidBlock final : public NetworkProducer {
     case 3:
       return Var(_outputs);
     default:
-      return Var::Empty();
+      return Var::Empty;
     }
   }
 
@@ -591,7 +591,7 @@ struct NARXBlock final : public NetworkProducer {
     case 5:
       return Var(_outputMem);
     default:
-      return Var::Empty();
+      return Var::Empty;
     }
   }
 
@@ -650,7 +650,7 @@ struct LSTMBlock final : public NetworkProducer {
     case 3:
       return Var(_outputs);
     default:
-      return Var::Empty();
+      return Var::Empty;
     }
   }
 

@@ -1,4 +1,4 @@
-(import "../build2/libcbnevolver.dll")
+(import "../build/libcbnevolver.dll")
 
 (def Root (Node))
 
