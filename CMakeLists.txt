@@ -94,6 +94,7 @@ set(
   -I${CMAKE_CURRENT_LIST_DIR}
   -I${CHAINBLOCKS_DIR}/include
   -I${CHAINBLOCKS_DIR}/deps/magic_enum/include
+  -I${CHAINBLOCKS_DIR}/deps/nameof/include
   -I${CHAINBLOCKS_DIR}/deps/cpp-taskflow
   -I${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   -I${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
@@ -169,6 +170,7 @@ include_directories(
   ${CHAINBLOCKS_DIR}/include
   ${CHAINBLOCKS_DIR}/deps/cpp-taskflow
   ${CHAINBLOCKS_DIR}/deps/magic_enum/include
+  ${CHAINBLOCKS_DIR}/deps/nameof/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/cereal/include
   ${CMAKE_CURRENT_LIST_DIR}/deps/easyloggingpp/src
   ${CMAKE_CURRENT_LIST_DIR}/deps/Catch2/single_include
