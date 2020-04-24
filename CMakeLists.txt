@@ -1,9 +1,14 @@
 project("chainblocks-tgbot")
 cmake_minimum_required(VERSION 3.14)
 set(CMAKE_CXX_STANDARD 17)
-add_compile_options(
-  -DELPP_DISABLE_TRACE_LOGS
-  -DELPP_THREAD_SAFE -Wall -march=sandybridge -ffast-math -Wno-multichar)
+add_compile_options(-Wall -march=sandybridge -ffast-math -Wno-multichar)
+
+add_compile_definitions(ELPP_THREAD_SAFE)
+
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+  add_link_options(-static)
+  add_compile_definitions(ELPP_DISABLE_TRACE_LOGS)
+endif()
 
 # remember CMAKE_EXPORT_COMPILE_COMMANDS , for irony etc
 

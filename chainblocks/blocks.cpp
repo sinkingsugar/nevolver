@@ -1,11 +1,12 @@
+// order matters!
+#include <easylogging++.h>
+INITIALIZE_EASYLOGGINGPP
+
 #include "../network.hpp"
 #include "../networks/liquid.hpp"
 #include "../networks/lstm.hpp"
 #include "../networks/mlp.hpp"
 #include "../networks/narx.hpp"
-
-// order matters!
-INITIALIZE_EASYLOGGINGPP
 
 #include "chainblocks.hpp"
 #include "dllblock.hpp"
@@ -44,7 +45,7 @@ struct SharedNetwork final {
   }
 
   static CBPointer deserialize(uint8_t *data, size_t len) {
-    LOG(DEBUG) << "SharedNetwork deserialize";
+    LOG(TRACE) << "SharedNetwork deserialize";
     std::stringstream ss;
     ss.write((const char *)data, len);
     cereal::BinaryInputArchive ia(ss);
@@ -58,18 +59,20 @@ struct SharedNetwork final {
   static void addRef(CBPointer pnet) {
     auto p = reinterpret_cast<SharedNetwork *>(pnet);
     p->_refcount++;
-    LOG(TRACE) << "Network refcount add: " << p->_refcount;
+    LOG(TRACE) << "Network refcount add: " << p->_refcount
+               << " SharedNetwork: " << p;
   }
 
   // Used when cloneVar is called around the chain
   static void decRef(CBPointer pnet) {
     auto p = reinterpret_cast<SharedNetwork *>(pnet);
     p->_refcount--;
-    LOG(TRACE) << "Network refcount dec: " << p->_refcount;
+    LOG(TRACE) << "Network refcount dec: " << p->_refcount
+               << " SharedNetwork: " << p;
     if (p->_refcount == 0) {
-      LOG(TRACE)
-          << "Releasing a Network reference; remaining use_count on holder: "
-          << (p->_holder.use_count() - 1);
+      LOG(TRACE) << "Releasing a Network reference: " << p->_holder.get()
+                 << " use_count: " << (p->_holder.use_count() - 1)
+                 << " SharedNetwork: " << p;
       delete p;
     }
   }
@@ -78,11 +81,24 @@ struct SharedNetwork final {
                                      &deserialize,       &addRef,    &decRef};
 
   SharedNetwork(const std::shared_ptr<Network> &net)
-      : _holder(net), _refcount(1) {}
+      : _holder(net), _refcount(1) {
+    LOG(TRACE) << "SharedNetwork _holder: " << _holder.get()
+               << " use_count: " << _holder.use_count()
+               << " SharedNetwork: " << this;
+  }
 
-  SharedNetwork(Network *net) : _holder(net), _refcount(1) {}
+  SharedNetwork(Network *net) : _holder(net), _refcount(0) {
+    LOG(TRACE) << "SharedNetwork _holder: " << _holder.get()
+               << " use_count: " << _holder.use_count()
+               << " SharedNetwork: " << this;
+  }
 
-  ~SharedNetwork() { assert(_refcount == 0); }
+  ~SharedNetwork() {
+    assert(_refcount == 0);
+    LOG(TRACE) << "~SharedNetwork _holder: " << _holder.get()
+               << " use_count: " << (_holder.use_count() - 1)
+               << " SharedNetwork: " << this;
+  }
 
   SharedNetwork(const SharedNetwork &other) = delete;
   SharedNetwork(const SharedNetwork &&other) = delete;
@@ -119,7 +135,7 @@ struct NetVar final : public CBVar {
     payload.objectVendorId = SharedNetwork::Vendor;
     payload.objectTypeId = SharedNetwork::Type;
     objectInfo = &SharedNetwork::ObjInfo;
-    flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
+    flags |= CBVAR_FLAGS_USES_OBJINFO;
 
     return *this;
   }
@@ -140,7 +156,7 @@ struct NetVar final : public CBVar {
     payload.objectVendorId = other.payload.objectVendorId;
     payload.objectTypeId = other.payload.objectTypeId;
     objectInfo = &SharedNetwork::ObjInfo;
-    flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
+    flags |= CBVAR_FLAGS_USES_OBJINFO;
 
     SharedNetwork::addRef(payload.objectValue);
 
@@ -163,7 +179,7 @@ struct NetVar final : public CBVar {
     payload.objectVendorId = other.payload.objectVendorId;
     payload.objectTypeId = other.payload.objectTypeId;
     objectInfo = &SharedNetwork::ObjInfo;
-    flags |= CBVAR_FLAGS_USES_OBJINFO | CBVAR_FLAGS_REF_COUNTED;
+    flags |= CBVAR_FLAGS_USES_OBJINFO;
   }
 
   std::shared_ptr<Network> get() {
@@ -250,7 +266,12 @@ static Parameters NarxParams{
 // TODO Add exposed/required variables
 
 struct NetworkUser {
-  ~NetworkUser() { LOG(TRACE) << "NetworkUser destroy."; }
+  ~NetworkUser() {
+    if (_netRef) {
+      LOG(TRACE) << "NetworkUser Network destroy, network: " << _netRef.get()
+                 << " use_count: " << (_netRef.use_count() - 1);
+    }
+  }
 
   static CBTypesInfo inputTypes() { return AnyType; }
   static CBTypesInfo outputTypes() { return AnyType; }
@@ -291,7 +312,14 @@ struct NetworkProducer : public NetworkUser {
       SharedNetwork::decRef(_state.payload.objectValue);
   }
 
-  CBVar activate(CBContext *context, const CBVar &input) { return input; }
+  CBTypeInfo compose(const CBInstanceData &data) {
+    data.block->inlineBlockId = NoopBlock;
+    return data.inputType;
+  }
+
+  CBVar activate(CBContext *context, const CBVar &input) {
+    throw ActivationError("NoopBlock activation called.");
+  }
 
   CBVar getState() { return _state; }
 
