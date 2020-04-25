@@ -8,6 +8,8 @@ add_compile_definitions(ELPP_THREAD_SAFE)
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_link_options(-static)
   add_compile_definitions(ELPP_DISABLE_TRACE_LOGS)
+else()
+  add_compile_options(-Wall -fsanitize=undefined)
 endif()
 
 # remember CMAKE_EXPORT_COMPILE_COMMANDS , for irony etc
@@ -89,6 +91,7 @@ set(
   ${CMAKE_CURRENT_LIST_DIR}/networks/mlp.hpp
   ${CMAKE_CURRENT_LIST_DIR}/networks/narx.hpp
   ${CMAKE_CURRENT_LIST_DIR}/networks/lstm.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/networks/liquid.hpp
   ${CMAKE_CURRENT_LIST_DIR}/chainblocks/blocks.cpp
   )
 

@@ -15,8 +15,9 @@ public:
       inputNodes.emplace_back(node);
     }
 
-    auto nhidden = Random::nextUInt() % uint32_t(hidden_start_max);
-    for(uint32_t i = 0; i < nhidden; i++) {
+    auto nhidden =
+        Random::nextUInt() % std::max(uint32_t(1), uint32_t(hidden_start_max));
+    for (uint32_t i = 0; i < nhidden; i++) {
       auto &node = _nodes.emplace_back(HiddenNode());
       _sortedNodes.emplace_back(node); // insertion order!
     }
@@ -44,14 +45,14 @@ public:
 
     auto nmuts = Random::nextUInt() % max_muts;
     std::vector<NetworkMutations> muts;
-    for(uint32_t i = 0; i < nmuts; i++) {
+    for (uint32_t i = 0; i < nmuts; i++) {
       auto mut = Random::nextUInt() % uint32_t(NetworkMutations::Total);
       muts.emplace_back((NetworkMutations)mut);
     }
 
     nmuts = Random::nextUInt() % max_muts;
     std::vector<NodeMutations> node_muts;
-    for(uint32_t i = 0; i < nmuts; i++) {
+    for (uint32_t i = 0; i < nmuts; i++) {
       auto mut = Random::nextUInt() % uint32_t(NodeMutations::Total);
       node_muts.emplace_back((NodeMutations)mut);
     }

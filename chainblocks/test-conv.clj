@@ -30,22 +30,62 @@
             (Convolve 1 2)
             (ImageToFloats)
             (Nevolver.Propagate .mlp))
-           (* 100 npixels))
+           (* 10 npixels))
                                         ; use it
+   (Sequence .final :Types Type.Float)
    (Repeat
     (-->
      .subject
      (Convolve 2)
      (ImageToFloats)
-     (Nevolver.Predict .mlp) >>! .final)
+     (Nevolver.Predict .mlp) >> .final)
     npixels)
                                         ; write result
    .final
    (Flatten)
    (FloatsToImage 128 128 3)
-   (WritePNG "result.png")))
+   (WritePNG "result.png")
+
+   (Nevolver.SaveModel .mlp)
+   (WriteFile "mlp-saved.nn")
+   ))
 
 (schedule Root sgded)
+
+(run Root)
+(def sgded nil)
+(prn "Done 1")
+
+(def replay
+  (Chain
+   "replay"
+                                        ; load subject
+   (LoadImage "cat_original.png")
+   (StripAlpha) &> .subject
+                                        ; load pre-trained model
+   (ReadFile "mlp-saved.nn") (ExpectBytes)
+   (Nevolver.LoadModel .loaded-mlp)
+                                        ; infer the model on subject
+   (Sequence .final :Types Type.Float)
+   (Repeat
+    (-->
+     .subject
+     (Convolve 2)
+     (ImageToFloats)
+     (Nevolver.Predict .loaded-mlp) >> .final)
+    npixels)
+                                        ; write results
+   .final
+   (Flatten)
+   (FloatsToImage 128 128 3)
+   (WritePNG "result2.png")))
+
+(schedule Root replay)
+
+(run Root)
+(def replay nil)
+(def Root nil)
+(prn "Done 2")
 
 ;; (def mlp (Chain
 ;;           "mlp"
@@ -82,6 +122,3 @@
 ;;   (Get "best")
 ;;   (Log)
 ;;   ))
-
-(run Root 0.01)
-(prn "Done")

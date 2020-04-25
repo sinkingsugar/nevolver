@@ -219,7 +219,9 @@ struct NeuroSeq : public CBVar {
   }
 };
 
+static Type NoneType{{CBType::None}};
 static Type IntType{{CBType::Int}};
+static Type BytesType{{CBType::Bytes}};
 static Type IntSeq{{CBType::Seq, {.seqTypes = IntType}}};
 static Type AnyType{{CBType::Any}};
 static Type StringType{{CBType::String}};
@@ -263,14 +265,13 @@ static Parameters NarxParams{
 // We want to train this with genetic
 // so if we release networks on cleanup it's bad
 
-// TODO Add exposed/required variables
-
 struct NetworkUser {
   ~NetworkUser() {
     if (_netRef) {
       LOG(TRACE) << "NetworkUser Network destroy, network: " << _netRef.get()
                  << " use_count: " << (_netRef.use_count() - 1);
     }
+    std::cout << "~NetworkUser: " << this << "\n";
   }
 
   static CBTypesInfo inputTypes() { return AnyType; }
@@ -289,6 +290,9 @@ struct NetworkUser {
   void warmup(CBContext *context) { _netParam.warmup(context); }
 
   void cleanup() { _netParam.cleanup(); }
+
+protected:
+  CBExposedTypeInfo _expInfo{};
 };
 
 struct NetworkConsumer : public NetworkUser {
@@ -302,14 +306,36 @@ struct NetworkConsumer : public NetworkUser {
     // our shared_ptr
     _netRef = NetVar(_netParam.get()).get();
   }
+
+  CBExposedTypesInfo requiredVariables() {
+    if (_netParam.isVariable()) {
+      _expInfo = CBExposedTypeInfo{_netParam.variableName(),
+                                   "The required neural network.", NetType};
+    } else {
+      _expInfo = {};
+    }
+    return CBExposedTypesInfo{&_expInfo, 1, 0};
+  }
 };
 
-struct NetworkProducer : public NetworkUser {
+struct NetworkProducer : NetworkUser {
   NetVar _state{};
 
   ~NetworkProducer() {
     if (_state.valueType == Object)
       SharedNetwork::decRef(_state.payload.objectValue);
+
+    std::cout << "~NetworkProducer: " << this << "\n";
+  }
+
+  CBExposedTypesInfo exposedVariables() {
+    if (_netParam.isVariable()) {
+      _expInfo = CBExposedTypeInfo{_netParam.variableName(),
+                                   "The exposed neural network.", NetType};
+    } else {
+      _expInfo = {};
+    }
+    return CBExposedTypesInfo{&_expInfo, 1, 0};
   }
 
   CBTypeInfo compose(const CBInstanceData &data) {
@@ -408,7 +434,6 @@ struct Activate : public NetworkConsumer {
 };
 
 struct Predict final : public Activate {
-
   CBVar activate(CBContext *context, const CBVar &input) {
     // NO-Copy activate
     NeuroVars in(input);
@@ -427,7 +452,7 @@ struct Clear final : public NetworkConsumer {
   }
 };
 
-struct Propagate : public NetworkConsumer {
+struct Propagate final : public NetworkConsumer {
   CBParametersInfo parameters() { return PropParams; }
 
   void setParam(int index, CBVar value) {
@@ -469,6 +494,48 @@ struct Propagate : public NetworkConsumer {
     // NO-Copy propagate
     NeuroVars in(input);
     return _netRef->propagate<NeuroVar>(in, _rate, _momentum, true);
+  }
+};
+
+struct SaveModel final : public NetworkConsumer {
+  static CBTypesInfo inputTypes() { return NoneType; }
+  static CBTypesInfo outputTypes() { return BytesType; }
+
+  CBVar activate(CBContext *context, const CBVar &input) {
+    _buffer.clear();
+    std::stringstream ss;
+    cereal::BinaryOutputArchive oa(ss);
+    oa(*_netRef);
+    _buffer = ss.str();
+    return Var((uint8_t *)_buffer.data(), _buffer.length());
+  }
+
+private:
+  std::string _buffer;
+};
+
+struct LoadModel final : public NetworkProducer {
+  static CBTypesInfo inputTypes() { return BytesType; }
+  static CBTypesInfo outputTypes() { return NoneType; }
+
+  void resetState() override {
+    LOG(TRACE) << "Loading a model, creating foo network!";
+    // we need a stub network here anyway
+    _netRef = std::make_shared<Network>();
+  }
+
+  CBTypeInfo compose(const CBInstanceData &data) {
+    // override noop behavior
+    return data.inputType;
+  }
+
+  CBVar activate(CBContext *context, const CBVar &input) {
+    LOG(TRACE) << "Loading a model! activate";
+    std::stringstream ss;
+    ss.write((const char *)input.payload.bytesValue, input.payload.bytesSize);
+    cereal::BinaryInputArchive ia(ss);
+    ia(*_netRef);
+    return Var::Empty;
   }
 };
 
@@ -714,6 +781,8 @@ void registerBlocks() {
   REGISTER_CBLOCK("Nevolver.NARX", Nevolver::NARXBlock);
   REGISTER_CBLOCK("Nevolver.LSTM", Nevolver::LSTMBlock);
   REGISTER_CBLOCK("Nevolver.Liquid", Nevolver::LiquidBlock);
+  REGISTER_CBLOCK("Nevolver.SaveModel", Nevolver::SaveModel);
+  REGISTER_CBLOCK("Nevolver.LoadModel", Nevolver::LoadModel);
 }
 } // namespace chainblocks
 
