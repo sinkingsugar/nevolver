@@ -45,7 +45,7 @@ struct SharedNetwork final {
   }
 
   static CBPointer deserialize(uint8_t *data, size_t len) {
-    LOG(TRACE) << "SharedNetwork deserialize";
+    LOG(DEBUG) << "SharedNetwork deserialize";
     std::stringstream ss;
     ss.write((const char *)data, len);
     cereal::BinaryInputArchive ia(ss);
@@ -70,7 +70,7 @@ struct SharedNetwork final {
     LOG(TRACE) << "Network refcount dec: " << p->_refcount
                << " SharedNetwork: " << p;
     if (p->_refcount == 0) {
-      LOG(TRACE) << "Releasing a Network reference: " << p->_holder.get()
+      LOG(DEBUG) << "Releasing a Network reference: " << p->_holder.get()
                  << " use_count: " << (p->_holder.use_count() - 1)
                  << " SharedNetwork: " << p;
       delete p;
@@ -268,10 +268,9 @@ static Parameters NarxParams{
 struct NetworkUser {
   ~NetworkUser() {
     if (_netRef) {
-      LOG(TRACE) << "NetworkUser Network destroy, network: " << _netRef.get()
+      LOG(DEBUG) << "NetworkUser Network destroy, network: " << _netRef.get()
                  << " use_count: " << (_netRef.use_count() - 1);
     }
-    std::cout << "~NetworkUser: " << this << "\n";
   }
 
   static CBTypesInfo inputTypes() { return AnyType; }
@@ -324,8 +323,6 @@ struct NetworkProducer : NetworkUser {
   ~NetworkProducer() {
     if (_state.valueType == Object)
       SharedNetwork::decRef(_state.payload.objectValue);
-
-    std::cout << "~NetworkProducer: " << this << "\n";
   }
 
   CBExposedTypesInfo exposedVariables() {

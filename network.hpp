@@ -68,7 +68,7 @@ public:
     return *this;
   }
 
-  ~Network() { LOG(TRACE) << "Network destroy."; }
+  ~Network() { LOG(DEBUG) << "Network destroy."; }
 
   template <typename SomeFloat, typename SomeFloatVector>
   void activate(const SomeFloatVector &input, std::vector<SomeFloat> &output) {
@@ -212,10 +212,10 @@ public:
   }
 
   // https://en.wikipedia.org/wiki/Pairing_function
-  static uint64_t pairing(uint64_t a, uint64_t b) {
-    return uint64_t(((1.0 / 2.0) * (double(a) + double(b)) *
-                     (double(a) + double(b) + 1.0)) +
-                    double(b));
+  static int64_t pairing(uint64_t a, uint64_t b) {
+    return int64_t(((1.0 / 2.0) * (double(a) + double(b)) *
+                    (double(a) + double(b) + 1.0)) +
+                   double(b));
   }
 
   static Node *getNodePtr(AnyNode &node) {
@@ -296,8 +296,8 @@ public:
     std::vector<ConnData> connections;
 
     {
-      std::map<uint64_t, ConnData> conns1;
-      std::map<uint64_t, ConnData> conns2;
+      std::map<int64_t, ConnData> conns1;
+      std::map<int64_t, ConnData> conns2;
       {
         std::unordered_map<const Node *, uint64_t> nodeMap1;
         uint64_t idx = 0;
