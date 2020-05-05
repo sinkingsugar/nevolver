@@ -199,3 +199,6 @@ add_library(cbnevolver SHARED
 target_compile_options(cbnevolver PUBLIC
   -fvisibility=hidden
   )
+
+set_target_properties(cbnevolver PROPERTIES PREFIX "")
+set_target_properties(cbnevolver PROPERTIES OUTPUT_NAME "nevolver")

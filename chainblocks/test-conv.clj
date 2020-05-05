@@ -1,11 +1,11 @@
-(import "../build/libcbnevolver.dll")
+(import "../build/nevolver.dll")
 
 (def Root (Node))
 
 (def npixels (* 128 128))
 
 (def sgded
-  (Chain
+  (Chaina
    "sgd"
                                         ; load resources
    (LoadImage "cat_texture.png")

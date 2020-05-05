@@ -1,17 +1,17 @@
-(import "../build/libcbnevolver.dll")
+(import "../build/nevolver.dll")
 
 (def Root (Node))
 
-(def mlp (Chain
-          "mlp"
-          (Mutant
-           (Nevolver.MLP .mlp
-                         :Inputs 2
-                         :Hidden 4
-                         :Outputs 1))
-          (Const [0.0 1.0])
-          (Nevolver.Predict .mlp)
-          (Set .result :Global true)))
+(def mlp
+  (Chain
+   "mlp"
+   (Mutant
+    (Nevolver.MLP .mlp
+                  :Inputs 2
+                  :Hidden 4
+                  :Outputs 1))
+   (Const [0.0 1.0])
+   (Nevolver.Predict .mlp) >== .result))
 
 (def fitness
   (Chain
@@ -25,26 +25,21 @@
  Root
  (Chain
   "test"
-  (Repeat
-   (-->
-    (Evolve
-     mlp
-     fitness
-     :Population 100
-     :Coroutines 10)
-    (Log) &> .best)
-   20)
-  .best
-  (Log)
-  (Take 1) >= .chain
+  :Looped
+  (Once (--> 0 >= .times))
+                                        ; evolve 20 times
+  .times (Math.Inc) > .times
+  (When (IsMore 20) (Stop))
+                                        ; train
+  (Evolve mlp fitness :Population 100 :Coroutines 10)
+  (Log) (Take 1) >= .chain
   (WriteFile "best.nn")
   (ChainRunner .chain)
-  (Get .result :Default [-1.0])
-  (Log)
+  (Get .result :Global true :Default [-1.0]) (Log "best prediction")
   ))
 
 (run Root 0.1)
-(prn "Done")
+(prn "Done training")
 
 (def testLoad
   (Chain
@@ -52,10 +47,10 @@
    (ReadFile "best.nn")
    (ExpectChain) >= .chain
    (ChainRunner .chain)
-   (Get .result :Default [-1.0])
+   (Get .result :Global true :Default [-1.0])
    (Log)
    ))
 
 (schedule Root testLoad)
 (run Root 0.1)
-(prn "Done")
+(prn "Done load test")

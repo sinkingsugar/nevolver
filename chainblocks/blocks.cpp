@@ -232,7 +232,7 @@ static Type NetType{
 static Type NetVarType{{CBType::ContextVar, {.contextVarTypes = NetType}}};
 
 static Parameters CommonParams{
-    {"Name", "The network model variable.", {NetVarType, StringType}}};
+    {"Name", "The network model variable.", {NetVarType}}};
 static Parameters PropParams{
     CommonParams,
     {{"Rate", "The number of input nodes.", {FloatType}},
@@ -311,7 +311,7 @@ struct NetworkConsumer : public NetworkUser {
       _expInfo = CBExposedTypeInfo{_netParam.variableName(),
                                    "The required neural network.", NetType};
     } else {
-      _expInfo = {};
+      throw ComposeError("No network name specified.");
     }
     return CBExposedTypesInfo{&_expInfo, 1, 0};
   }
@@ -330,7 +330,7 @@ struct NetworkProducer : NetworkUser {
       _expInfo = CBExposedTypeInfo{_netParam.variableName(),
                                    "The exposed neural network.", NetType};
     } else {
-      _expInfo = {};
+      throw ComposeError("No network name specified.");
     }
     return CBExposedTypesInfo{&_expInfo, 1, 0};
   }
