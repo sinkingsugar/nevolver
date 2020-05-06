@@ -39,7 +39,7 @@ public:
   Network &operator=(const Network &other) = delete;
 
   Network(Network &&other)
-      : _crossoverScore(other._crossoverScore), _fitness(other._fitness) {
+ noexcept       : _crossoverScore(other._crossoverScore), _fitness(other._fitness) {
     _inputs.swap(other._inputs);
     _outputs.swap(other._outputs);
     _sortedNodes.swap(other._sortedNodes);
@@ -52,7 +52,7 @@ public:
     _unusedWeights.swap(other._unusedWeights);
   }
 
-  Network &operator=(Network &&other) {
+  Network &operator=(Network &&other)  noexcept {
     _inputs.swap(other._inputs);
     _outputs.swap(other._outputs);
     _sortedNodes.swap(other._sortedNodes);

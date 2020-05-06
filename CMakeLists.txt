@@ -6,7 +6,6 @@ add_compile_options(-Wall -march=sandybridge -ffast-math -Wno-multichar)
 add_compile_definitions(ELPP_THREAD_SAFE)
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-  add_link_options(-static)
   add_compile_definitions(ELPP_DISABLE_TRACE_LOGS)
   add_compile_definitions(ELPP_DISABLE_DEBUG_LOGS)
 else()

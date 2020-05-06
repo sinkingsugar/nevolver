@@ -1,4 +1,5 @@
-(import "../build/nevolver.dll")
+(import "../build2/nevolver.dll")
+;; (import "../build-lnx/nevolver.so")
 
 (def Root (Node))
 
@@ -27,15 +28,18 @@
   "test"
   :Looped
   (Once (--> 0 >= .times))
-                                        ; evolve 20 times
-  .times (Math.Inc) > .times
-  (When (IsMore 20) (Stop))
                                         ; train
-  (Evolve mlp fitness :Population 100 :Coroutines 10)
+  (Evolve mlp fitness :Threads 1 :Population 100 :Coroutines 10)
   (Log) (Take 1) >= .chain
-  (WriteFile "best.nn")
   (ChainRunner .chain)
-  (Get .result :Global true :Default [-1.0]) (Log "best prediction")
+  (Get .result :Global true :Default [-1.0])
+  (Log "best prediction")
+                                          ; evolve 20 times
+  .times (Math.Inc) > .times
+  (When (IsMore 20) (-->
+                     .chain
+                     (WriteFile "best.nn")
+                     (Stop)))
   ))
 
 (run Root 0.1)
@@ -48,8 +52,7 @@
    (ExpectChain) >= .chain
    (ChainRunner .chain)
    (Get .result :Global true :Default [-1.0])
-   (Log)
-   ))
+   (Log "predicted")))
 
 (schedule Root testLoad)
 (run Root 0.1)

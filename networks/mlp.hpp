@@ -6,7 +6,7 @@
 namespace Nevolver {
 class MLP final : public Network {
 public:
-  MLP(int inputs, std::vector<int> hidden, int outputs) {
+  MLP(int inputs, const std::vector<int>& hidden, int outputs) {
     Group inputNodes;
     for (int i = 0; i < inputs; i++) {
       auto &node = _nodes.emplace_back(InputNode());

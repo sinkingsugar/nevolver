@@ -2,7 +2,6 @@
 #define NODE_H
 
 #include "connections.hpp"
-#include "nevolver.hpp"
 
 namespace Nevolver {
 enum class NodeMutations { Squash, Bias, Total };

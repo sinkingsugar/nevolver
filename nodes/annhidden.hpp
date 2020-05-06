@@ -1,7 +1,7 @@
 #ifndef ANNHIDDEN_H
 #define ANNHIDDEN_H
 
-#include "../nevolver.hpp"
+#include "../node.hpp"
 
 namespace Nevolver {
 class HiddenNode final : public NodeCommon<HiddenNode> {

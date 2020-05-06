@@ -1,9 +1,10 @@
 (import "../build2/nevolver.dll")
+(import "../build-lnx/nevolver.so")
 
 (def Root (Node))
 
 (def npixels (* 128 128))
-(def eras 100)
+(def eras 1000)
 
 (def job
   (Chain
@@ -13,13 +14,11 @@
    (StripAlpha) &> .filtered
    (LoadImage "cat.png")
    (StripAlpha) &> .unfiltered
-   (LoadImage "cat_original.png")
-   (StripAlpha) &> .subject
                                         ; build the network
    (Mutant
-    (Nevolver.MLP .mlp
+    (Nevolver.Liquid .mlp
                   :Inputs (* 3 (* 3 3))
-                  :Hidden 8
+                  :Hidden 16
                   :Outputs 3))
                                         ; train it
    (Sequence .diffs :Types [Type.Float])
@@ -43,8 +42,7 @@
                     (WriteFile "best-conv.nn")))
                                         ; prepare fitness
    .diffs (Flatten) (Math.Abs)
-   (Reduce (Math.Add .$0))
-   ))
+   (Reduce (Math.Add .$0))))
 
 (def fitness
   (Chain
@@ -61,7 +59,7 @@
   .times (Math.Inc) > .times
   (When (IsMore eras) (Stop))
                                         ; train
-  (Evolve job fitness :Population 100 :Threads 10 :Coroutines 2)
+  (Evolve job fitness :Population 10 :Threads 2 :Coroutines 2)
                                         ; print, store
   (Log) (Take 1) >= .chain
   true >== .dumpModel
