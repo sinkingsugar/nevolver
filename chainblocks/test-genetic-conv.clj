@@ -59,7 +59,7 @@
   .times (Math.Inc) > .times
   (When (IsMore eras) (Stop))
                                         ; train
-  (Evolve job fitness :Population 10 :Threads 2 :Coroutines 2)
+  (Evolve job fitness :Population 100 :Threads 10 :Coroutines 2)
                                         ; print, store
   (Log) (Take 1) >= .chain
   true >== .dumpModel

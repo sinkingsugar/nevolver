@@ -1123,7 +1123,7 @@ private:
 
   uint64_t _crossoverScore = 0;
 
-  double _fitness = std::numeric_limits<double>::min();
+  double _fitness = -std::numeric_limits<float>::max();
 };
 } // namespace Nevolver
 
