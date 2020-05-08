@@ -71,7 +71,7 @@ public:
   static NeuroFloat init() { return Random::normal(0.0, 0.5); }
 
   // our mutation adjust for weights
-  static NeuroFloat adjust() { return Random::normal(0.0, 0.1); }
+  static NeuroFloat adjust() { return Random::normal(0.0, 0.01); }
 
 private:
 #ifdef NDEBUG

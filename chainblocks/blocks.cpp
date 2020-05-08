@@ -364,7 +364,7 @@ struct NetworkProducer : NetworkUser {
     const std::vector<NodeMutations> nmuts{NodeMutations::Squash,
                                            NodeMutations::Bias};
 
-    _netRef->mutate(muts, 0.2, nmuts, 0.2, 0.2);
+    _netRef->mutate(muts, 0.001, nmuts, 0.001, 0.001);
   }
 
   void crossover(CBVar parent1, CBVar parent2) {

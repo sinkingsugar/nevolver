@@ -6,8 +6,8 @@
 namespace Nevolver {
 class NARX final : public Network {
 public:
-  NARX(int inputs, const std::vector<int> &hidden, int outputs, int input_memory,
-       int output_memory) {
+  NARX(int inputs, const std::vector<int> &hidden, int outputs,
+       int input_memory, int output_memory) {
     // keep track of pure ringbuffer memory conns to fix weights
     std::vector<std::reference_wrapper<Connection>> memoryTunnels;
 

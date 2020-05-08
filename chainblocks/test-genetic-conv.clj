@@ -16,12 +16,12 @@
    (StripAlpha) &> .unfiltered
                                         ; build the network
    (Mutant
-    (Nevolver.Liquid .mlp
+    (Nevolver.MLP .mlp
                   :Inputs (* 3 (* 3 3))
-                  :Hidden 16
+                  :Hidden 8
                   :Outputs 3))
                                         ; train it
-   (Sequence .diffs :Types [Type.Float])
+   (Sequence .diffs :Types [[Type.Float]])
    (Repeat (-->
             .unfiltered
             (Convolve 2 2)
@@ -33,6 +33,7 @@
             (Convolve 1 2)
             (ImageToFloats)
             (Math.Subtract .predicted)
+            (Math.Pow 2.0)
             >> .diffs)
            npixels)
                                         ; save model if required
@@ -41,8 +42,9 @@
                     (Nevolver.SaveModel .mlp)
                     (WriteFile "best-conv.nn")))
                                         ; prepare fitness
-   .diffs (Flatten) (Math.Abs)
-   (Reduce (Math.Add .$0))))
+   .diffs
+   (Reduce (Math.Add .$0))
+   (Math.Mean)))
 
 (def fitness
   (Chain
