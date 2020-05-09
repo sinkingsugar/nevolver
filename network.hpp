@@ -211,13 +211,6 @@ public:
     LOG(TRACE) << "Network mutate end.";
   }
 
-  // https://en.wikipedia.org/wiki/Pairing_function
-  static int64_t pairing(uint64_t a, uint64_t b) {
-    return int64_t(((1.0 / 2.0) * (double(a) + double(b)) *
-                    (double(a) + double(b) + 1.0)) +
-                   double(b));
-  }
-
   static Node *getNodePtr(AnyNode &node) {
     return std::visit([](auto &&n) { return (Node *)&n; }, node);
   }
@@ -230,9 +223,8 @@ public:
     LOG(TRACE) << "Network crossover start...";
 
     Network res{};
-    // try to keep some statistic to see if crossover is worth it
-    res._crossoverScore =
-        1 + pairing(net1._crossoverScore, net2._crossoverScore);
+    hash_combine(res._crossoverScore, net1._crossoverScore);
+    hash_combine(res._crossoverScore, net2._crossoverScore);
 
     auto n1inputs = net1._inputs.size();
     auto n2inputs = net2._inputs.size();
@@ -296,8 +288,8 @@ public:
     std::vector<ConnData> connections;
 
     {
-      std::map<int64_t, ConnData> conns1;
-      std::map<int64_t, ConnData> conns2;
+      std::map<size_t, ConnData> conns1;
+      std::map<size_t, ConnData> conns2;
       {
         std::unordered_map<const Node *, uint64_t> nodeMap1;
         uint64_t idx = 0;
@@ -317,7 +309,9 @@ public:
           auto fidx = nodeMap1[conn->from];
           auto tidx = nodeMap1[conn->to];
           auto gidx = conn->gater ? nodeMap1[conn->gater] : 0;
-          auto id = pairing(fidx, tidx);
+          size_t id = 0;
+          hash_combine(id, fidx);
+          hash_combine(id, tidx);
           auto [_, added] =
               conns1.emplace(id, ConnData{conn, fidx, tidx, gidx});
           assert(added); // likely there is a bug somewhere
@@ -327,7 +321,9 @@ public:
           auto fidx = nodeMap2[conn->from];
           auto tidx = nodeMap2[conn->to];
           auto gidx = conn->gater ? nodeMap1[conn->gater] : 0;
-          auto id = pairing(fidx, tidx);
+          size_t id = 0;
+          hash_combine(id, fidx);
+          hash_combine(id, tidx);
           auto [_, added] =
               conns2.emplace(id, ConnData{conn, fidx, tidx, gidx});
           assert(added); // likely there is a bug somewhere
@@ -493,7 +489,7 @@ public:
     size_t unusedNodes;
     size_t unusedConnections;
     size_t unusedWeights;
-    uint64_t crossoverScore;
+    size_t crossoverScore;
   };
 
   Stats getStats() {
@@ -1116,12 +1112,23 @@ protected:
   std::vector<size_t> _unusedWeights;
 
 private:
+  //  on why XOR is not a good choice for hash-combining:
+  //  https://stackoverflow.com/questions/5889238/why-is-xor-the-default-way-to-combine-hashes
+  //
+  //  this is from boost
+  //
+  template <typename T>
+  static inline void hash_combine(std::size_t &seed, const T &val) {
+    std::hash<T> hasher;
+    seed ^= hasher(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+  }
+
 #ifdef NEVOLVER_WIDE
   std::vector<NeuroFloat> _wideInputs;
 #endif
   std::vector<NeuroFloat> _outputCache;
 
-  uint64_t _crossoverScore = 0;
+  size_t _crossoverScore = 0;
 
   double _fitness = -std::numeric_limits<float>::max();
 };

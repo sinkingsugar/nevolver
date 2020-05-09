@@ -4,7 +4,7 @@
 (def Root (Node))
 
 (def npixels (* 128 128))
-(def eras 1000)
+(def eras 1500)
 
 (def job
   (Chain

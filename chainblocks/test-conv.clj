@@ -5,7 +5,7 @@
 (def npixels (* 128 128))
 
 (def sgded
-  (Chaina
+  (Chain
    "sgd"
                                         ; load resources
    (LoadImage "cat_texture.png")

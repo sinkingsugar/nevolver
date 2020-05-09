@@ -83,7 +83,6 @@ set(
   ${CMAKE_CURRENT_LIST_DIR}/nevolver.hpp
   ${CMAKE_CURRENT_LIST_DIR}/neurofloat.hpp
   ${CMAKE_CURRENT_LIST_DIR}/tests/main.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/random.hpp
   ${CMAKE_CURRENT_LIST_DIR}/squash.hpp
   ${CMAKE_CURRENT_LIST_DIR}/connections.hpp
   ${CMAKE_CURRENT_LIST_DIR}/node.hpp
@@ -158,9 +157,10 @@ add_custom_target(tidy DEPENDS ${tidyfied})
 ###
 
 ### general
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
   if(WIN32)
-    add_link_options(-fuse-ld=lld)
+    # add_link_options(-fuse-ld=lld)
+    # add_compile_options(-gcodeview -Wl,-pdb=)
   endif()
 elseif(WIN32)
   add_link_options(-static)

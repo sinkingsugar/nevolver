@@ -3,13 +3,13 @@
 
 // #define NEVOLVER_WIDE 4
 
-#include "random.hpp"
 #include <cassert>
 #include <deque>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <ostream>
+#include <random>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -41,45 +41,44 @@
 namespace Nevolver {
 class Random {
 public:
-  static double nextDouble() {
-    return double(_gen()) * (1.0 / double(xorshift::max()));
-  }
+  static double nextDouble() { return _udis(_gen); }
 
   static NeuroFloat next() {
 #ifdef NEVOLVER_WIDE
     NeuroFloat res;
     for (auto i = 0; i < NeuroFloat::Width; i++) {
-      res.vec[i] = nextDouble();
+      res.vec[i] = _udis(_gen);
     }
     return res;
 #else
-    return nextDouble();
+    return _udis(_gen);
 #endif
   }
 
-  static uint32_t nextUInt() { return _gen(); }
-
-  static NeuroFloat normal(double mean, double stdDeviation) {
-    NeuroFloat u1 = nextDouble();
-    u1 = either(u1 == 0.0, 0.00000001, u1);
-    auto u2 = next();
-    auto rstdNorm = std::sqrt(-2.0 * std::log(u1)) * std::sin(2.0 * M_PI * u2);
-    return mean + stdDeviation * rstdNorm;
-  }
+  static uint32_t nextUInt() { return _uintdis(_gen); }
 
   // our weight/bias init
-  static NeuroFloat init() { return Random::normal(0.0, 0.5); }
+  static NeuroFloat init() { return next(); }
 
   // our mutation adjust for weights
-  static NeuroFloat adjust() { return Random::normal(0.0, 0.01); }
+  static NeuroFloat adjust() {
+#ifdef NEVOLVER_WIDE
+    NeuroFloat res;
+    for (auto i = 0; i < NeuroFloat::Width; i++) {
+      res.vec[i] = _ndis(_gen);
+    }
+    return res;
+#else
+    return _ndis(_gen);
+#endif
+  }
 
 private:
-#ifdef NDEBUG
   static inline thread_local std::random_device _rd{};
-  static inline thread_local xorshift _gen{_rd};
-#else
-  static inline thread_local xorshift _gen{};
-#endif
+  static inline thread_local std::mt19937 _gen{_rd()};
+  static inline thread_local std::uniform_int_distribution<> _uintdis{};
+  static inline thread_local std::uniform_real_distribution<> _udis{0.0, 1.0};
+  static inline thread_local std::normal_distribution<> _ndis{0.0, 0.1};
 };
 
 class Node;
