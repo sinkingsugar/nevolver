@@ -61,9 +61,9 @@
   .times (Math.Inc) > .times
   (When (IsMore eras) (Stop))
                                         ; train
-  (Evolve job fitness :Population 100 :Threads 10 :Coroutines 2)
+  (Evolve job fitness :Elitism 0.0 :Population 300 :Threads 10 :Coroutines 1)
                                         ; print, store
-  (Log) (Take 1) >= .chain
+  (Log) (Take 1) (ExpectChain) >= .chain
   true >== .dumpModel
   (ChainRunner .chain)
   (Msg "DONE")))
