@@ -335,6 +335,7 @@ public:
       for (auto [k, v] : primary) {
         auto sit = secondary.find(k);
         if (sit != secondary.end()) {
+          LOG(TRACE) << "Crossover, found a shared connection " << k;
           // this connection is shared
           // so we can pick from the other net
           if (Random::nextDouble() < 0.5) {
@@ -347,6 +348,7 @@ public:
             w.second.clear();
           }
         } else {
+          LOG(TRACE) << "Crossover, adding non shared connection " << k;
           // let the strongest win if not shared
           connections.emplace_back(v);
           auto &w = res._weights.emplace_back(*v.conn->weight);
