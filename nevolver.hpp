@@ -58,7 +58,7 @@ public:
   static uint32_t nextUInt() { return _uintdis(_gen); }
 
   // our weight/bias init
-  static NeuroFloat init() { return next(); }
+  static NeuroFloat init() { return next() * 0.2 - 0.1; }
 
   // our mutation adjust for weights
   static NeuroFloat adjust() {
