@@ -1,1 +1,7 @@
 /target
+.DS_Store
+build*
+*.log
+*.el
+*.cereal
+.vscode

@@ -9,6 +9,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "../networks/narx.hpp"
 
 #include "chainblocks.hpp"
+#include "common_types.hpp"
 #include "dllblock.hpp"
 
 #include <sstream>
@@ -207,8 +208,10 @@ struct NeuroVar final : public CBVar {
   }
 };
 
-using NeuroVars =
-    IterableArray<CBSeq, NeuroVar, &Core::seqResize, &Core::seqFree>;
+void neuroVarPush(CBSeq &s, const NeuroVar &v) { Core::seqPush(s, v); }
+
+using NeuroVars = IterableArray<CBSeq, NeuroVar, &Core::seqResize,
+                                &Core::seqFree, &neuroVarPush>;
 
 struct NeuroSeq : public CBVar {
   NeuroSeq(std::vector<NeuroVar> &vec) : CBVar() {
@@ -219,14 +222,6 @@ struct NeuroSeq : public CBVar {
   }
 };
 
-static Type NoneType{{CBType::None}};
-static Type IntType{{CBType::Int}};
-static Type BytesType{{CBType::Bytes}};
-static Type IntSeq{{CBType::Seq, {.seqTypes = IntType}}};
-static Type AnyType{{CBType::Any}};
-static Type StringType{{CBType::String}};
-static Type FloatType{{CBType::Float}};
-static Type FloatSeq{{CBType::Seq, {.seqTypes = FloatType}}};
 static Type NetType{
     {CBType::Object, {.object = {SharedNetwork::Vendor, SharedNetwork::Type}}}};
 static Type NetVarType{{CBType::ContextVar, {.contextVarTypes = NetType}}};
@@ -235,31 +230,35 @@ static Parameters CommonParams{
     {"Name", "The network model variable.", {NetVarType}}};
 static Parameters PropParams{
     CommonParams,
-    {{"Rate", "The number of input nodes.", {FloatType}},
+    {{"Rate", "The number of input nodes.", {CoreInfo::FloatType}},
      {"Momentum",
       "The number of hidden nodes, can be a sequence for multiple layers.",
-      {FloatType}}}};
+      {CoreInfo::FloatType}}}};
 static Parameters MlpParams{
     CommonParams,
-    {{"Inputs", "The number of input nodes.", {IntType}},
+    {{"Inputs", "The number of input nodes.", {CoreInfo::IntType}},
      {"Hidden",
       "The number of hidden nodes, can be a sequence for multiple layers.",
-      {{IntType, IntSeq}}},
-     {"Outputs", "The number of output nodes.", {IntType}}}};
+      {{CoreInfo::IntType, CoreInfo::IntSeqType}}},
+     {"Outputs", "The number of output nodes.", {CoreInfo::IntType}}}};
 static Parameters LiquidParams{
     CommonParams,
-    {{"Inputs", "The number of input nodes.", {IntType}},
-     {"Hidden", "The number of max starting hidden nodes.", {{IntType}}},
-     {"Outputs", "The number of output nodes.", {IntType}}}};
+    {{"Inputs", "The number of input nodes.", {CoreInfo::IntType}},
+     {"Hidden",
+      "The number of max starting hidden nodes.",
+      {{CoreInfo::IntType}}},
+     {"Outputs", "The number of output nodes.", {CoreInfo::IntType}}}};
 static Parameters NarxParams{
     CommonParams,
-    {{"Inputs", "The number of input nodes.", {IntType}},
+    {{"Inputs", "The number of input nodes.", {CoreInfo::IntType}},
      {"Hidden",
       "The number of hidden nodes, can be a sequence for multiple layers.",
-      {{IntType, IntSeq}}},
-     {"Outputs", "The number of output nodes.", {IntType}},
-     {"InputMemory", "The number of inputs to memorize.", {IntType}},
-     {"OutputMemory", "The number of outputs to memorize.", {IntType}}}};
+      {{CoreInfo::IntType, CoreInfo::IntSeqType}}},
+     {"Outputs", "The number of output nodes.", {CoreInfo::IntType}},
+     {"InputMemory", "The number of inputs to memorize.", {CoreInfo::IntType}},
+     {"OutputMemory",
+      "The number of outputs to memorize.",
+      {CoreInfo::IntType}}}};
 
 // Problems
 // We want to train this with genetic
@@ -273,8 +272,8 @@ struct NetworkUser {
     }
   }
 
-  static CBTypesInfo inputTypes() { return AnyType; }
-  static CBTypesInfo outputTypes() { return AnyType; }
+  static CBTypesInfo inputTypes() { return CoreInfo::AnyType; }
+  static CBTypesInfo outputTypes() { return CoreInfo::AnyType; }
   static CBParametersInfo parameters() { return CommonParams; }
 
   void setParam(int index, CBVar value) { _netParam = value; }
@@ -295,7 +294,7 @@ protected:
 };
 
 struct NetworkConsumer : public NetworkUser {
-  static CBTypesInfo inputTypes() { return FloatSeq; }
+  static CBTypesInfo inputTypes() { return CoreInfo::FloatSeqType; }
 
   void warmup(CBContext *context) {
     NetworkUser::warmup(context);
@@ -418,7 +417,7 @@ struct NetworkProducer : NetworkUser {
 };
 
 struct Activate : public NetworkConsumer {
-  static CBTypesInfo outputTypes() { return FloatSeq; }
+  static CBTypesInfo outputTypes() { return CoreInfo::FloatSeqType; }
 
   std::vector<NeuroVar> _outputCache;
 
@@ -440,8 +439,8 @@ struct Predict final : public Activate {
 };
 
 struct Clear final : public NetworkConsumer {
-  static CBTypesInfo inputTypes() { return AnyType; }
-  static CBTypesInfo outputTypes() { return AnyType; }
+  static CBTypesInfo inputTypes() { return CoreInfo::AnyType; }
+  static CBTypesInfo outputTypes() { return CoreInfo::AnyType; }
 
   CBVar activate(CBContext *context, const CBVar &input) {
     _netRef->clear();
@@ -482,7 +481,7 @@ struct Propagate final : public NetworkConsumer {
     }
   }
 
-  CBTypesInfo outputTypes() { return FloatType; }
+  CBTypesInfo outputTypes() { return CoreInfo::FloatType; }
 
   double _rate = 0.3;
   double _momentum = 0.0;
@@ -495,8 +494,8 @@ struct Propagate final : public NetworkConsumer {
 };
 
 struct SaveModel final : public NetworkConsumer {
-  static CBTypesInfo inputTypes() { return NoneType; }
-  static CBTypesInfo outputTypes() { return BytesType; }
+  static CBTypesInfo inputTypes() { return CoreInfo::NoneType; }
+  static CBTypesInfo outputTypes() { return CoreInfo::BytesType; }
 
   CBVar activate(CBContext *context, const CBVar &input) {
     _buffer.clear();
@@ -512,8 +511,8 @@ private:
 };
 
 struct LoadModel final : public NetworkProducer {
-  static CBTypesInfo inputTypes() { return BytesType; }
-  static CBTypesInfo outputTypes() { return NoneType; }
+  static CBTypesInfo inputTypes() { return CoreInfo::BytesType; }
+  static CBTypesInfo outputTypes() { return CoreInfo::NoneType; }
 
   void resetState() override {
     LOG(TRACE) << "Loading a model, creating foo network!";

@@ -10,7 +10,7 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_definitions(ELPP_DISABLE_DEBUG_LOGS)
 else()
   add_compile_definitions(ELPP_DISABLE_TRACE_LOGS)
-  add_compile_options(-Wall -fsanitize=undefined)
+  add_compile_options(-Wall)
 endif()
 
 # remember CMAKE_EXPORT_COMPILE_COMMANDS , for irony etc
