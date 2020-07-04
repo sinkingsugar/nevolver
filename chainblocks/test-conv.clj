@@ -1,4 +1,5 @@
 (import "../build/nevolver.dll")
+(import "../build/nevolver.dylib")
 
 (def Root (Node))
 
