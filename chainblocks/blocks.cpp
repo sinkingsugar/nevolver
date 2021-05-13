@@ -11,6 +11,7 @@ INITIALIZE_EASYLOGGINGPP
 #include "chainblocks.hpp"
 #include "common_types.hpp"
 #include "dllblock.hpp"
+#include "utility.hpp"
 
 #include <sstream>
 
@@ -227,37 +228,39 @@ static Type NetType{
 static Type NetVarType{{CBType::ContextVar, {.contextVarTypes = NetType}}};
 
 static Parameters CommonParams{
-    {"Name", "The network model variable.", {NetVarType}}};
+    {"Name", "The network model variable."_optional, {NetVarType}}};
 static Parameters PropParams{
     CommonParams,
-    {{"Rate", "The number of input nodes.", {CoreInfo::FloatType}},
+    {{"Rate", "The number of input nodes."_optional, {CoreInfo::FloatType}},
      {"Momentum",
-      "The number of hidden nodes, can be a sequence for multiple layers.",
+      "The number of hidden nodes, can be a sequence for multiple layers."_optional,
       {CoreInfo::FloatType}}}};
 static Parameters MlpParams{
     CommonParams,
-    {{"Inputs", "The number of input nodes.", {CoreInfo::IntType}},
+    {{"Inputs", "The number of input nodes."_optional, {CoreInfo::IntType}},
      {"Hidden",
-      "The number of hidden nodes, can be a sequence for multiple layers.",
+      "The number of hidden nodes, can be a sequence for multiple layers."_optional,
       {{CoreInfo::IntType, CoreInfo::IntSeqType}}},
-     {"Outputs", "The number of output nodes.", {CoreInfo::IntType}}}};
+     {"Outputs", "The number of output nodes."_optional, {CoreInfo::IntType}}}};
 static Parameters LiquidParams{
     CommonParams,
-    {{"Inputs", "The number of input nodes.", {CoreInfo::IntType}},
+    {{"Inputs", "The number of input nodes."_optional, {CoreInfo::IntType}},
      {"Hidden",
-      "The number of max starting hidden nodes.",
+      "The number of max starting hidden nodes."_optional,
       {{CoreInfo::IntType}}},
-     {"Outputs", "The number of output nodes.", {CoreInfo::IntType}}}};
+     {"Outputs", "The number of output nodes."_optional, {CoreInfo::IntType}}}};
 static Parameters NarxParams{
     CommonParams,
-    {{"Inputs", "The number of input nodes.", {CoreInfo::IntType}},
+    {{"Inputs", "The number of input nodes."_optional, {CoreInfo::IntType}},
      {"Hidden",
-      "The number of hidden nodes, can be a sequence for multiple layers.",
+      "The number of hidden nodes, can be a sequence for multiple layers."_optional,
       {{CoreInfo::IntType, CoreInfo::IntSeqType}}},
-     {"Outputs", "The number of output nodes.", {CoreInfo::IntType}},
-     {"InputMemory", "The number of inputs to memorize.", {CoreInfo::IntType}},
+     {"Outputs", "The number of output nodes."_optional, {CoreInfo::IntType}},
+     {"InputMemory",
+      "The number of inputs to memorize."_optional,
+      {CoreInfo::IntType}},
      {"OutputMemory",
-      "The number of outputs to memorize.",
+      "The number of outputs to memorize."_optional,
       {CoreInfo::IntType}}}};
 
 // Problems
@@ -308,7 +311,7 @@ struct NetworkConsumer : public NetworkUser {
   CBExposedTypesInfo requiredVariables() {
     if (_netParam.isVariable()) {
       _expInfo = CBExposedTypeInfo{_netParam.variableName(),
-                                   "The required neural network.", NetType};
+                                   "The required neural network."_optional, NetType};
     } else {
       throw ComposeError("No network name specified.");
     }
@@ -327,7 +330,7 @@ struct NetworkProducer : NetworkUser {
   CBExposedTypesInfo exposedVariables() {
     if (_netParam.isVariable()) {
       _expInfo = CBExposedTypeInfo{_netParam.variableName(),
-                                   "The exposed neural network.", NetType};
+                                   "The exposed neural network."_optional, NetType};
     } else {
       throw ComposeError("No network name specified.");
     }
